@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+Fixed
+- npm CLI bin: ship `bin/ai-kit.js` so `npx ai-kit` is registered (npm 11 strips extensionless bin paths on publish).
+- Drop `prepublishOnly` test gate so publish is not blocked by hung MCP registry stubs from interrupted runs.
+
 ## 1.2.0
 
 Added

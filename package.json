@@ -1,6 +1,6 @@
 {
   "name": "@bobrowsse-tech/ai-kit",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Drop-in AI project kit (rules, docs, reuse index, MCP setup, guardrails). Zero dependencies.",
   "license": "MIT",
   "type": "module",
@@ -8,7 +8,7 @@
     "node": ">=18"
   },
   "bin": {
-    "ai-kit": "./bin/ai-kit"
+    "ai-kit": "bin/ai-kit.js"
   },
   "files": [
     "bin",

@@ -7,7 +7,7 @@ Drop-in structure, rules, and tooling that make AI agents reuse code instead of 
 Pin as a **devDependency** in the target project (recommended), then install or refresh:
 
 ```bash
-npm install -D @bobrowsse-tech/ai-kit@1.2.0
+npm install -D @bobrowsse-tech/ai-kit@1.2.1
 npx ai-kit install                    # new or existing project (cwd)
 npx ai-kit update                     # refresh kit files, keep everything you customized
 npx ai-kit install --dry-run          # show what would happen

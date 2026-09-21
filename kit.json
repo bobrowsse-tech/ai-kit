@@ -1,21 +1,64 @@
 {
   "name": "ai-kit",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "$comment": "First matching rule wins; unmatched files are 'seed'. owned: kit-managed, refreshed on --update unless you modified them (then a .kit-new file is written). seed: created once, never touched again (docs, config, CODEOWNERS...). merge-doc: AGENTS.md (a differing existing file gets AGENTS.kit.md next to it). json-merge: settings merged additively; entries the kit previously shipped and later dropped are removed.",
   "rules": [
-    { "prefix": "scripts/ai/", "class": "owned" },
-    { "prefix": ".claude/skills/reuse-first/", "class": "owned" },
-    { "prefix": ".claude/skills/project-bootstrap/", "class": "owned" },
-    { "prefix": ".claude/skills/project-memory/", "class": "owned" },
-    { "prefix": ".claude/skills/verify-and-ship/", "class": "owned" },
-    { "prefix": ".claude/skills/mcp-tools/", "class": "owned" },
-    { "path": ".github/workflows/ai-guardrails.yml", "class": "owned" },
-    { "path": ".github/pull_request_template.md", "class": "owned" },
-    { "prefix": ".githooks/", "class": "owned" },
-    { "path": ".husky/pre-commit", "class": "owned" },
-    { "path": ".ai/mcp-catalog.json", "class": "owned" },
-    { "path": ".claude/settings.json", "class": "json-merge" },
-    { "path": "AGENTS.md", "class": "merge-doc" },
-    { "path": ".pre-commit-config.yaml", "class": "seed", "when": "python" }
+    {
+      "prefix": "scripts/ai/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/reuse-first/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/project-bootstrap/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/project-memory/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/verify-and-ship/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/mcp-tools/",
+      "class": "owned"
+    },
+    {
+      "path": ".github/workflows/ai-guardrails.yml",
+      "class": "owned"
+    },
+    {
+      "path": ".github/pull_request_template.md",
+      "class": "owned"
+    },
+    {
+      "prefix": ".githooks/",
+      "class": "owned"
+    },
+    {
+      "path": ".husky/pre-commit",
+      "class": "owned"
+    },
+    {
+      "path": ".ai/mcp-catalog.json",
+      "class": "owned"
+    },
+    {
+      "path": ".claude/settings.json",
+      "class": "json-merge"
+    },
+    {
+      "path": "AGENTS.md",
+      "class": "merge-doc"
+    },
+    {
+      "path": ".pre-commit-config.yaml",
+      "class": "seed",
+      "when": "python"
+    }
   ]
 }

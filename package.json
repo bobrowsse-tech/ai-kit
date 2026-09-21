@@ -8,7 +8,7 @@
     "node": ">=18"
   },
   "bin": {
-    "ai-kit": "./bin/ai-kit.mjs"
+    "ai-kit": "./bin/ai-kit"
   },
   "files": [
     "bin",

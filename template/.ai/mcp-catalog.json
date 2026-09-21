@@ -1,0 +1,105 @@
+{
+  "$comment": "Vetted MCP servers this kit may configure. Only the ENTRY (what to run, when it applies) lives here; versions are resolved live from the npm registry at setup time and pinned in .ai/mcp.lock.json. Add your own in .ai/mcp-catalog.local.json (same shape; an entry with the same id overrides). Sources: npm | local-cli | command.",
+  "version": 1,
+  "servers": [
+    {
+      "id": "angular-cli",
+      "label": "Angular CLI",
+      "category": "framework",
+      "why": "Official Angular MCP server: best-practices guide, project listing, angular.dev docs search.",
+      "when": { "deps": ["@angular/cli"], "files": ["angular.json"] },
+      "source": "local-cli",
+      "cliPackage": "@angular/cli",
+      "localBin": "ng",
+      "args": ["mcp", "--read-only"],
+      "defaultOn": true,
+      "docs": "https://angular.dev/ai/mcp",
+      "notes": [
+        "Runs your project's own pinned @angular/cli (no extra package).",
+        "Started with --read-only; remove that flag only if you want code-modifying tools."
+      ]
+    },
+    {
+      "id": "nextjs-devtools",
+      "label": "Next.js DevTools",
+      "category": "framework",
+      "why": "Vercel's Next.js MCP: runtime errors, routes, and logs from the running dev server.",
+      "when": { "deps": ["next"] },
+      "source": "npm",
+      "package": "next-devtools-mcp",
+      "runArgs": [],
+      "defaultOn": true,
+      "docs": "https://nextjs.org/docs/app/guides/mcp",
+      "notes": [
+        "Runtime tools need Next.js 16+ and a running dev server (npm run dev).",
+        "Sends anonymous telemetry by default; see the package README for the opt-out environment variable."
+      ]
+    },
+    {
+      "id": "prisma-cli",
+      "label": "Prisma CLI",
+      "category": "data",
+      "why": "Prisma's local MCP server: migration status, migrate-dev, Prisma Studio.",
+      "when": { "deps": ["prisma"], "files": ["prisma/schema.prisma"] },
+      "source": "local-cli",
+      "cliPackage": "prisma",
+      "localBin": "prisma",
+      "args": ["mcp"],
+      "defaultOn": false,
+      "docs": "https://www.prisma.io/docs/postgres/mcp-server",
+      "notes": [
+        "Opt-in only: exposes migrate-dev and migrate-reset (destructive). Use against a dev database.",
+        "Some Prisma 8 release candidates ship no `mcp` command (reported 2026-09-19); --verify catches that before anything is written."
+      ]
+    },
+    {
+      "id": "context7",
+      "label": "Context7 docs",
+      "category": "docs",
+      "why": "Current, version-specific library documentation, so agents stop relying on stale training data (AGENTS.md section 5).",
+      "when": { "always": true },
+      "source": "npm",
+      "package": "@upstash/context7-mcp",
+      "runArgs": [],
+      "defaultOn": true,
+      "docs": "https://github.com/upstash/context7",
+      "notes": [
+        "Third-party hosted service: library/topic queries leave your machine. Check your client's or employer's data policy.",
+        "Works without an API key; an optional key raises rate limits (pass it through an environment variable, never inline)."
+      ]
+    },
+    {
+      "id": "playwright",
+      "label": "Playwright browser + e2e",
+      "category": "browser-testing",
+      "why": "Drive a real browser to exercise the UI, reproduce bugs, and write e2e tests.",
+      "when": { "web": true, "deps": ["@playwright/test"] },
+      "source": "npm",
+      "package": "@playwright/mcp",
+      "runArgs": ["--isolated"],
+      "defaultOn": true,
+      "docs": "https://playwright.dev/docs/getting-started-mcp",
+      "notes": [
+        "Not a security boundary: it controls a real browser. --isolated (set here) keeps each session's profile in memory.",
+        "Do not point it at browser sessions signed in to sensitive accounts."
+      ]
+    },
+    {
+      "id": "chrome-devtools",
+      "label": "Chrome DevTools",
+      "category": "browser-debug",
+      "why": "Performance traces, network and console inspection, Lighthouse audits in a live Chrome.",
+      "when": { "web": true },
+      "source": "npm",
+      "package": "chrome-devtools-mcp",
+      "runArgs": ["--isolated", "--no-usage-statistics", "--no-performance-crux"],
+      "defaultOn": false,
+      "docs": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+      "notes": [
+        "Opt-in: exposes ~50 tools (context cost). Add --slim to runArgs for a 3-tool footprint.",
+        "Usage statistics and CrUX lookups are switched off by the flags set here.",
+        "Exposes browser content to the agent; officially supports Chrome / Chrome for Testing."
+      ]
+    }
+  ]
+}

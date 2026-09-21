@@ -1,0 +1,13 @@
+# Code owners are requested for review automatically. Turn on branch protection
+# "Require review from Code Owners" so this is enforced, not advisory.
+#
+# Auth, sessions, tokens, and permissions need isolated review (AGENTS.md section 6).
+# scripts/ai/check-auth-review.mjs warns until every auth-related path has an owner.
+# Replace @your-org/security with a real team or user, then uncomment/adapt:
+#
+# /src/auth/               @your-org/security
+# /src/**/session*/        @your-org/security
+# **/token*                @your-org/security
+# /.github/workflows/      @your-org/platform
+# /.claude/settings.json   @your-org/platform
+# /scripts/ai/hook.mjs     @your-org/platform

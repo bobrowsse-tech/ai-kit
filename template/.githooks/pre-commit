@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Runs on any OS (git always provides sh for hooks, including Git for Windows).
+command -v node >/dev/null 2>&1 || { echo "[WARN] Node.js (>=18) not found: skipping AI kit checks (CI will run them)." >&2; exit 0; }
+exec node scripts/ai/pre-commit.mjs

@@ -1,0 +1,338 @@
+# .github/workflows/ai-guardrails.yml
+name: AI Guardrails & Quality Enforcement
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  # Single knob for the Node runtime; align with .nvmrc / "engines" in package.json.
+  NODE_VERSION: "22"
+
+jobs:
+  validate-docs:
+    name: Docs, Index & Reuse Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enforce Required Documentation Presence & Content
+        run: node scripts/ai/check-docs.mjs
+
+      - name: Functionality Index Is Up To Date
+        run: node scripts/ai/build-index.mjs --check
+
+      - name: Dependencies Are Pinned
+        run: node scripts/ai/check-pins.mjs
+
+      - name: MCP Configs Match Lock, Pinned, No Inline Secrets
+        run: node scripts/ai/setup-mcp.mjs --check
+
+      - name: Agent Skills Mirror (.agents/skills) Is In Sync
+        run: node scripts/ai/sync-agents.mjs --check
+
+      - name: Coverage Threshold Is Configured
+        run: node scripts/ai/check-coverage.mjs
+
+      - name: Auth Paths Have Code Owners
+        run: node scripts/ai/check-auth-review.mjs
+
+      - name: Duplicate Code Report
+        run: node scripts/ai/dupes.mjs
+
+  security-and-dependency-audit:
+    name: Security Scan & Dependency Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret Scanning (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Organization-owned repos also need: GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Audit Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm audit --audit-level=high
+          elif [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm audit --audit-level high
+          else
+            echo "No npm/pnpm lockfile found. Skipping JS audit (add pip-audit / cargo audit steps for other ecosystems)."
+          fi
+
+  code-quality-and-type-safety:
+    name: Static Analysis, Build & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Dependencies (lockfile required)
+        run: bash scripts/ai/ci-install.sh
+
+      - name: Strict Type Checking
+        run: |
+          # PM_EXEC is intentionally word-split: "npx --no-install", "pnpm exec"
+          # shellcheck disable=SC2086
+          if [ -f tsconfig.json ]; then
+            $PM_EXEC tsc --noEmit
+          fi
+
+      - name: Lint
+        run: |
+          # PM_RUN is intentionally word-split: "npm run", "pnpm run"
+          # shellcheck disable=SC2086
+          if node scripts/ai/has-script.mjs lint; then $PM_RUN lint; else echo "No lint script. Skipping."; fi
+
+      - name: Build
+        run: |
+          # shellcheck disable=SC2086
+          if node scripts/ai/has-script.mjs build; then $PM_RUN build; else echo "No build script. Skipping."; fi
+
+      - name: Test (with coverage when a test:coverage script exists)
+        run: |
+          # shellcheck disable=SC2086
+          if node scripts/ai/has-script.mjs test:coverage; then
+            $PM_RUN test:coverage
+          elif node scripts/ai/has-script.mjs test; then
+            $PM_RUN test
+          else
+            echo "No test script. Skipping."
+          fi
+
+  detect:
+    name: Detect Languages
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.d.outputs.python }}
+      playwright: ${{ steps.d.outputs.playwright }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Detect Python and Playwright
+        id: d
+        run: |
+          if [ -f pyproject.toml ] || [ -f setup.py ] || ls requirements*.txt >/dev/null 2>&1; then
+            echo "python=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "python=false" >> "$GITHUB_OUTPUT"
+          fi
+          if git ls-files | grep -Eq '(^|/)playwright\.config\.(ts|js|mjs|cjs)$'; then
+            echo "playwright=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "playwright=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  e2e:
+    name: End-to-End Tests (Playwright)
+    needs: detect
+    if: needs.detect.outputs.playwright == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Dependencies (lockfile required)
+        run: bash scripts/ai/ci-install.sh
+
+      - name: Install Playwright Browsers
+        run: |
+          # shellcheck disable=SC2086
+          $PM_EXEC playwright install --with-deps
+
+      - name: Run E2E Tests
+        run: |
+          # shellcheck disable=SC2086
+          if node scripts/ai/has-script.mjs test:e2e; then
+            $PM_RUN test:e2e
+          else
+            $PM_EXEC playwright test
+          fi
+
+      - name: Upload Playwright Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+
+  python-quality:
+    name: Python Lint, Types, Tests & Audit
+    needs: detect
+    if: needs.detect.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    env:
+      # Used only when the repo has no .python-version file.
+      PYTHON_VERSION: "3.13"
+      # CI tool pins (exact). Verify on PyPI before bumping; Dependabot does not track these.
+      PIP_AUDIT_VERSION: "2.10.1"
+      # Only needed if the repo has a uv.lock: set an exact uv version (verify on PyPI).
+      UV_VERSION: ""
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python (from .python-version)
+        if: hashFiles('.python-version') != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Set up Python (default)
+        if: hashFiles('.python-version') == ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies (lockfile or pinned requirements required)
+        run: |
+          python -m venv .venv
+          if [ -f uv.lock ]; then
+            if [ -z "$UV_VERSION" ]; then
+              echo "::error::uv.lock found: set an exact UV_VERSION in this workflow."
+              exit 1
+            fi
+            python -m venv /tmp/uvenv
+            /tmp/uvenv/bin/python -m pip install "uv==${UV_VERSION}"
+            UV_PROJECT_ENVIRONMENT="$PWD/.venv" /tmp/uvenv/bin/uv sync --frozen --all-groups --inexact
+          elif ls requirements*.txt >/dev/null 2>&1; then
+            for f in requirements*.txt; do
+              .venv/bin/python -m pip install -r "$f"
+            done
+          else
+            echo "::error::Python project without uv.lock or requirements*.txt. Commit a lockfile or pinned requirements (strict pinning rule)."
+            exit 1
+          fi
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Lint (ruff)
+        run: |
+          if command -v ruff >/dev/null 2>&1; then
+            ruff check .
+          else
+            echo "::notice::ruff is not installed (add it to dev dependencies). Skipping."
+          fi
+
+      - name: Type Check (mypy)
+        run: |
+          if command -v mypy >/dev/null 2>&1 && { [ -f mypy.ini ] || grep -qs '^\[tool\.mypy\]' pyproject.toml; }; then
+            mypy .
+          else
+            echo "::notice::mypy not installed or not configured. Skipping."
+          fi
+
+      - name: Test (pytest)
+        run: |
+          if command -v pytest >/dev/null 2>&1; then
+            COV=()
+            if python -c "import pytest_cov" >/dev/null 2>&1; then COV=(--cov); fi
+            set +e
+            pytest -q "${COV[@]}"
+            rc=$?
+            set -e
+            if [ "$rc" -eq 5 ]; then
+              echo "::warning::pytest collected no tests."
+            elif [ "$rc" -ne 0 ]; then
+              exit "$rc"
+            fi
+          else
+            echo "::notice::pytest is not installed. Skipping."
+          fi
+
+      - name: Dependency Audit (pip-audit)
+        run: |
+          python -m venv /tmp/auditenv
+          /tmp/auditenv/bin/python -m pip install "pip-audit==${PIP_AUDIT_VERSION}"
+          .venv/bin/python -m pip freeze --exclude-editable > /tmp/audit-requirements.txt
+          # Fails on any known vulnerability; add --ignore-vuln <ID> for reviewed exceptions.
+          /tmp/auditenv/bin/pip-audit -r /tmp/audit-requirements.txt --no-deps --disable-pip
+
+  lint-workflows:
+    name: Lint Workflow File (actionlint)
+    runs-on: ubuntu-latest
+    env:
+      # Exact pin. Verify the latest release at https://github.com/rhysd/actionlint/releases before bumping.
+      ACTIONLINT_VERSION: "1.7.12"
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install actionlint (pinned, downloaded from the version tag)
+        run: |
+          curl -fsSL -o /tmp/download-actionlint.bash "https://raw.githubusercontent.com/rhysd/actionlint/v${ACTIONLINT_VERSION}/scripts/download-actionlint.bash"
+          bash /tmp/download-actionlint.bash "${ACTIONLINT_VERSION}" /tmp
+
+      - name: Lint this workflow (your other workflows are not touched)
+        run: /tmp/actionlint -color .github/workflows/ai-guardrails.yml
+
+  docs-sync-check:
+    name: Schema & Documentation Sync Guard
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Flag Auth Changes (isolated review) and Check Code Owners
+        run: node scripts/ai/check-auth-review.mjs --changed-from origin/${{ github.base_ref }}
+
+      - name: Check if Schema or API code changed without docs/schema.md update
+        run: |
+          CHANGED_SCHEMA_CODE=$(git diff --name-only origin/${{ github.base_ref }} HEAD | grep -E '(^|/)(prisma|migrations|models|schema|controllers|api)/' || true)
+          SCHEMA_DOC_CHANGED=$(git diff --name-only origin/${{ github.base_ref }} HEAD | grep 'docs/schema.md' || true)
+
+          if [ -n "$CHANGED_SCHEMA_CODE" ] && [ -z "$SCHEMA_DOC_CHANGED" ]; then
+            echo "::error::Data models or API paths were modified, but docs/schema.md was not updated!"
+            echo "Changed files:"
+            echo "$CHANGED_SCHEMA_CODE"
+            exit 1
+          fi
+
+          echo "Schema/documentation sync validation passed."

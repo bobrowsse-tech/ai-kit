@@ -1,0 +1,11 @@
+# Optional: for Python teams that use https://pre-commit.com. Local hook only (no third-party repos).
+# If you use this, unset core.hooksPath (git config --unset core.hooksPath) and run: pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: ai-kit-checks
+        name: AI kit checks (docs, index, MCP, skills)
+        entry: node scripts/ai/pre-commit.mjs
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -1,0 +1,6 @@
+{
+  "pins": "error",
+  "coverage": "warn",
+  "authReview": "warn",
+  "mcp": { "clients": ["claude"], "minAgeDays": 3 }
+}

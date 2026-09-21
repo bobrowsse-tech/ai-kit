@@ -1,0 +1,62 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/ai/find.mjs *)",
+      "Bash(node scripts/ai/build-index.mjs)",
+      "Bash(node scripts/ai/build-index.mjs --check)",
+      "Bash(node scripts/ai/dupes.mjs)",
+      "Bash(node scripts/ai/remember.mjs *)",
+      "Bash(node scripts/ai/check-pins.mjs)",
+      "Bash(node scripts/ai/check-coverage.mjs)",
+      "Bash(node scripts/ai/check-auth-review.mjs)",
+      "Bash(node scripts/ai/sync-agents.mjs)",
+      "Bash(node scripts/ai/setup-mcp.mjs)",
+      "Bash(node scripts/ai/setup-mcp.mjs --check)",
+      "Bash(node scripts/ai/check-docs.mjs)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(npm publish *)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(pnpm add *)",
+      "Bash(yarn add *)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(uv add *)",
+      "Bash(poetry add *)",
+      "Bash(cargo add *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(node scripts/ai/setup-mcp.mjs --apply*)",
+      "Bash(node scripts/ai/setup-mcp.mjs --update*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./secrets/**)",
+      "Edit(./.env)",
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(chmod -R 777 *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/ai/hook.mjs\" pre-tool" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/ai/hook.mjs\" stop" }
+        ]
+      }
+    ]
+  }
+}

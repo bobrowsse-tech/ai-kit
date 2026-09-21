@@ -1,0 +1,68 @@
+# CI for the kit itself (this file lives in the kit repo, not in projects that install it).
+name: Kit CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1" # weekly live smoke test: catches upstream MCP package / registry changes
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Hermetic tests (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ["22"]
+        include:
+          - { os: ubuntu-latest, node: "20" }
+          - { os: ubuntu-latest, node: "24" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+
+  test-windows:
+    name: Hermetic tests (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm test
+
+  lint-workflows:
+    name: Lint workflows (actionlint)
+    runs-on: ubuntu-latest
+    env:
+      # Exact pin. Verify the latest release at https://github.com/rhysd/actionlint/releases before bumping.
+      ACTIONLINT_VERSION: "1.7.12"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actionlint (pinned, downloaded from the version tag)
+        run: |
+          curl -fsSL -o /tmp/download-actionlint.bash "https://raw.githubusercontent.com/rhysd/actionlint/v${ACTIONLINT_VERSION}/scripts/download-actionlint.bash"
+          bash /tmp/download-actionlint.bash "${ACTIONLINT_VERSION}" /tmp
+      - name: Lint the kit workflow and the workflow it ships to projects
+        run: /tmp/actionlint -color .github/workflows/kit-ci.yml template/.github/workflows/ai-guardrails.yml
+
+  live-smoke:
+    name: Live smoke (real npm + MCP registries, real servers)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm run test:live

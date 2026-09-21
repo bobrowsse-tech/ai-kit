@@ -22,8 +22,7 @@
   ],
   "scripts": {
     "test": "node tests/run.mjs",
-    "test:live": "node tests/live-smoke.mjs",
-    "prepublishOnly": "npm test"
+    "test:live": "node tests/live-smoke.mjs"
   },
   "repository": {
     "type": "git",

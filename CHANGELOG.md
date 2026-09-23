@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+Added
+- Pre-ship security: `pre-ship-security` skill, seed `docs/security-checklist.md` (21-point list), and `scripts/ai/preship-check.mjs` (best-effort static scan; config `"preship": "warn"|"error"|"off"`, default warn).
+- CI: Pre-Ship Security Scan step in the shipped `ai-guardrails.yml`. On install/update, if a customized workflow is missing that step, the installer injects only the step (does not rewrite the rest of the file).
+- `verify-and-ship` checklist item for pre-ship security before first deploy / public release.
+
 ## 1.2.1
 
 Fixed

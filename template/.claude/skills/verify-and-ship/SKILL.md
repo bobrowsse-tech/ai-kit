@@ -20,6 +20,7 @@ Python equivalents: `ruff check .`, `mypy .`, `pytest -q`, `pip-audit -r <pinned
 8. Coverage: run the coverage script (`test:coverage`, or `pytest --cov`); the threshold lives in the test tool's config (`node scripts/ai/check-coverage.mjs` confirms one exists)
 9. e2e: if `playwright.config.*` exists, run the e2e suite (`test:e2e` or `npx playwright test`)
 10. Auth: if you touched auth, sessions, tokens, or permissions, say so in the PR and check `node scripts/ai/check-auth-review.mjs`
+11. Pre-ship security: before a first deploy or public release, run the `pre-ship-security` skill against `docs/security-checklist.md` (`node scripts/ai/preship-check.mjs` is the cheap static net only)
 
 ## Sync docs
 - `docs/tasks.md`: mark done, add progress and next steps

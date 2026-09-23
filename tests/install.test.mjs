@@ -22,7 +22,7 @@ describe('fresh install', () => {
     const d = fresh();
     for (const f of ['AGENTS.md', 'CLAUDE.md', 'docs/memory.md', 'scripts/ai/hook.mjs', '.claude/settings.json', '.github/CODEOWNERS', '.githooks/pre-commit', '.ai/config.json']) assert.ok(exists(d, f), f);
     const rec = json(d, '.ai/kit.json');
-    assert.equal(rec.kitVersion, '1.2.0');
+    assert.equal(rec.kitVersion, JSON.parse(fs.readFileSync(path.join(KIT, 'kit.json'), 'utf8')).version);
     assert.match(rec.files['scripts/ai/lib.mjs'], /^[0-9a-f]{64}$/);
     assert.ok(!('docs/index.md' in rec.files), 'seeds are not tracked');
     assert.ok(!exists(d, '.pre-commit-config.yaml'), 'python-only file is skipped for non-python projects');
@@ -143,7 +143,7 @@ describe('update', () => {
     const r = install(d, ['--update', '--dry-run'], k);
     assert.match(r.out, /\[dry run\][\s\S]*updated[\s\S]*find\.mjs/);
     assert.doesNotMatch(read(d, 'scripts/ai/find.mjs'), /kit 1\.3\.0/);
-    assert.equal(json(d, '.ai/kit.json').kitVersion, '1.2.0');
+    assert.equal(json(d, '.ai/kit.json').kitVersion, JSON.parse(fs.readFileSync(path.join(KIT, 'kit.json'), 'utf8')).version);
   });
 });
 
@@ -159,7 +159,7 @@ describe('upgrading a pre-1.1 install (no .ai/kit.json)', () => {
     r = install(d, ['--force']);
     assert.doesNotMatch(read(d, 'scripts/ai/find.mjs'), /old kit version/);
     assert.equal(read(d, 'docs/index.md'), '# mine\n');
-    assert.equal(json(d, '.ai/kit.json').kitVersion, '1.2.0');
+    assert.equal(json(d, '.ai/kit.json').kitVersion, JSON.parse(fs.readFileSync(path.join(KIT, 'kit.json'), 'utf8')).version);
   });
 });
 
@@ -217,5 +217,51 @@ describe('full install (with post steps)', { skip: !posix }, () => {
     assert.match(r.out, /Next steps/);
     assert.ok(exists(d, '.agents/skills/reuse-first/SKILL.md') && exists(d, '.ai/stack.json'));
     assert.equal(sh(d, 'git config core.hooksPath').out.trim(), '.githooks');
+  });
+});
+
+describe('pre-ship security', () => {
+  it('ships the skill, checklist seed, scanner, and CI step on a fresh install', () => {
+    const d = fresh();
+    assert.ok(exists(d, '.claude/skills/pre-ship-security/SKILL.md'));
+    assert.ok(exists(d, 'docs/security-checklist.md'));
+    assert.ok(exists(d, 'scripts/ai/preship-check.mjs'));
+    assert.match(read(d, '.github/workflows/ai-guardrails.yml'), /preship-check\.mjs/);
+    assert.match(read(d, '.github/workflows/ai-guardrails.yml'), /Pre-Ship Security Scan/);
+    assert.ok(!('docs/security-checklist.md' in json(d, '.ai/kit.json').files), 'checklist is a seed');
+  });
+  it('injects the CI step into a customized workflow without rewriting the rest', () => {
+    const d = tmp();
+    const custom = `name: mine
+jobs:
+  validate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auth Paths Have Code Owners
+        run: node scripts/ai/check-auth-review.mjs
+      - name: Duplicate Code Report
+        run: node scripts/ai/dupes.mjs
+  security-and-dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo custom-kept
+`;
+    put(d, { '.github/workflows/ai-guardrails.yml': custom });
+    const r = install(d);
+    assert.equal(r.code, 0, r.all);
+    const wf = read(d, '.github/workflows/ai-guardrails.yml');
+    assert.match(wf, /preship-check\.mjs/);
+    assert.match(wf, /custom-kept/);
+    assert.match(wf, /name: mine/);
+    assert.match(r.out, /pre-ship security scan step/);
+    const again = install(d);
+    assert.equal(read(d, '.github/workflows/ai-guardrails.yml').split('preship-check.mjs').length, 2, 'inject is idempotent');
+    assert.doesNotMatch(again.out, /pre-ship security scan step/);
+  });
+  it('keeps a customized security-checklist.md seed on reinstall', () => {
+    const d = fresh();
+    put(d, { 'docs/security-checklist.md': '# mine checklist\n' });
+    install(d);
+    assert.equal(read(d, 'docs/security-checklist.md'), '# mine checklist\n');
   });
 });

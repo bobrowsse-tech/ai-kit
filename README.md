@@ -1,4 +1,4 @@
-# AI Project Kit 1.2
+# AI Project Kit 1.3
 
 Drop-in structure, rules, and tooling that make AI agents reuse code instead of regenerating it, spend fewer tokens, learn per project, follow guardrails you can enforce, and use the right MCP servers for the stack. Zero dependencies (Node >= 18).
 
@@ -7,7 +7,7 @@ Drop-in structure, rules, and tooling that make AI agents reuse code instead of 
 Pin as a **devDependency** in the target project (recommended), then install or refresh:
 
 ```bash
-npm install -D @bobrowsse-tech/ai-kit@1.2.1
+npm install -D @bobrowsse-tech/ai-kit@1.3.0
 npx ai-kit install                    # new or existing project (cwd)
 npx ai-kit update                     # refresh kit files, keep everything you customized
 npx ai-kit install --dry-run          # show what would happen
@@ -43,15 +43,17 @@ Every file has one of four classes (`kit.json`, recorded per project in `.ai/kit
 | Piece | Purpose |
 |---|---|
 | `AGENTS.md` (+ `CLAUDE.md`) | Canonical rules: boot sequence, reuse-first DRY, token discipline, guardrails, DoD, docs sync, memory, skills, MCP, monorepos. |
-| `docs/` (12 files) | The standard docs plus `functionality-index.md` and `memory.md`. |
+| `docs/` (12 + security checklist) | The standard docs plus `functionality-index.md`, `memory.md`, and seed `security-checklist.md`. |
 | `find.mjs`, `build-index.mjs`, `dupes.mjs` | Reuse search, generated index (stale = failure), duplicate-block report. |
 | `detect-stack.mjs`, `remember.mjs` | Stack detection and per-technology skills; dated project memory. |
 | `setup-mcp.mjs` | MCP servers: plan, apply, verify, update, check, discover. |
 | `hook.mjs`, `.claude/settings.json` | Claude Code enforcement (below). |
-| `check-pins`, `check-coverage`, `check-auth-review`, `check-docs` | CI/pre-commit checks. |
+| `check-pins`, `check-coverage`, `check-auth-review`, `check-docs`, `preship-check` | CI/pre-commit checks (preship defaults to warn). |
+| `pre-ship-security` skill | 21-point pre-launch review against `docs/security-checklist.md`. |
 | `sync-agents.mjs` | Mirrors `.claude/skills` to `.agents/skills` for other agents. |
-| `.github/` | Workflow (JS, Python, e2e), Dependabot, PR template, CODEOWNERS. |
+| `.github/` | Workflow (JS, Python, e2e, pre-ship scan), Dependabot, PR template, CODEOWNERS. |
 
+On install/update, if `.github/workflows/ai-guardrails.yml` exists but is missing the Pre-Ship Security Scan step, the installer **injects that step only** (custom workflow edits elsewhere are left alone). Set `"preship": "error"` in `.ai/config.json` when you want the scan to fail CI.
 ## Enforcement (Claude Code)
 
 `.claude/settings.json` sets permission rules (deny secrets and destructive commands; ask before pushes, installs, network tools, MCP apply/update) and registers two hooks:

@@ -104,6 +104,37 @@ const GA_BLOCK = `${GA_BEGIN}\nscripts/ai/** text eol=lf\n.githooks/* text eol=l
   if (!cur.includes(GA_BEGIN)) { write('.gitattributes', cur ? `${cur.replace(/\s*$/, '\n')}\n${GA_BLOCK}` : GA_BLOCK); log.merges.push('.gitattributes (line-ending rules for scripts and hooks)'); }
 }
 
+// ---- CI: inject Pre-Ship Security Scan into ai-guardrails.yml if missing (never overwrites the rest of the file) ----
+const WF = '.github/workflows/ai-guardrails.yml';
+const PRESHIP_BEGIN = '# BEGIN ai-kit pre-ship security';
+const PRESHIP_BLOCK = `      ${PRESHIP_BEGIN}
+      - name: Pre-Ship Security Scan
+        run: node scripts/ai/preship-check.mjs
+      # END ai-kit pre-ship security
+`;
+{
+  if (fs.existsSync(abs(WF))) {
+    const cur = fs.readFileSync(abs(WF), 'utf8');
+    if (!cur.includes('preship-check.mjs') && !cur.includes(PRESHIP_BEGIN)) {
+      let next = null;
+      const afterAuth = /(- name: Auth Paths Have Code Owners\n(?:.*\n)*?        run: node scripts\/ai\/check-auth-review\.mjs\n)/;
+      if (afterAuth.test(cur)) next = cur.replace(afterAuth, `$1\n${PRESHIP_BLOCK}`);
+      else {
+        const beforeDupes = /(- name: Duplicate Code Report\n)/;
+        if (beforeDupes.test(cur)) next = cur.replace(beforeDupes, `${PRESHIP_BLOCK}\n$1`);
+        else {
+          const beforeSecurityJob = /(\n  security-and-dependency-audit:\n)/;
+          if (beforeSecurityJob.test(cur)) next = cur.replace(beforeSecurityJob, `\n${PRESHIP_BLOCK}$1`);
+        }
+      }
+      if (next && next !== cur) {
+        write(WF, next);
+        log.merges.push(`${WF} (pre-ship security scan step; rest of workflow untouched)`);
+      }
+    }
+  }
+}
+
 // ---- post steps ----
 const notes = [];
 if (!DRY) {
@@ -152,7 +183,8 @@ Next steps
      Add to package.json scripts so every clone is wired:  "prepare": "node scripts/ai/setup-hooks.mjs"
   3. CODEOWNERS: replace the example owners in .github/CODEOWNERS and enable "Require review from Code Owners".
   4. Tell your agent: "Read AGENTS.md and run the project-bootstrap skill."
-  5. Commit AGENTS.md, CLAUDE.md, docs/, .ai/, .claude/, .agents/, scripts/ai/, .github/, .githooks/, .mcp.json.`);
+  5. Before first deploy: "Run the pre-ship-security skill and go through docs/security-checklist.md."
+  6. Commit AGENTS.md, CLAUDE.md, docs/, .ai/, .claude/, .agents/, scripts/ai/, .github/, .githooks/, .mcp.json.`);
 } else {
   console.log('\nUpdate finished. Review CONFLICTS (if any), then commit.');
 }

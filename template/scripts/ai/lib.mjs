@@ -21,6 +21,7 @@ const DEFAULTS = {
   mcp: { clients: ['claude'], minAgeDays: 3 }, // clients: claude | vscode | cursor
   coverage: 'warn', // 'error' | 'warn' | 'off': a coverage threshold must be configured in the test tool
   authReview: 'warn', // 'error' | 'warn' | 'off': auth-related paths must be covered by CODEOWNERS
+  preship: 'warn', // 'error' | 'warn' | 'off': scripts/ai/preship-check.mjs (static pre-ship security scan)
   guard: { // Claude Code PreToolUse guard (scripts/ai/hook.mjs)
     lockfiles: ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb', 'uv.lock', 'poetry.lock', 'Cargo.lock'],
     guardrailFiles: ['.claude/settings.json', 'scripts/ai/hook.mjs', '.githooks/', '.husky/', '.github/workflows/ai-guardrails.yml'],

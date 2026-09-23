@@ -240,3 +240,31 @@ describe('pre-commit + hook wiring', () => {
     assert.match(bad.all, /functionality-index\.md is stale/);
   });
 });
+
+describe('preship-check', () => {
+  it('passes a clean project and flags common misses', () => {
+    const d = project({
+      '.gitignore': 'node_modules\n',
+      'package.json': { name: 'x', dependencies: { express: '4.0.0', cors: '2.0.0' } },
+      'src/server.js': "import cors from 'cors';\napp.use(cors());\n",
+    });
+    let r = ai(d, 'preship-check.mjs');
+    assert.equal(r.code, 0, 'warn mode exits 0');
+    assert.match(r.all, /02-env-gitignore|20-cors-default|19-no-security-headers/);
+    put(d, {
+      '.gitignore': '.env\nnode_modules\n',
+      'package.json': { name: 'x', dependencies: { react: '19.0.0' } },
+      'src/server.js': 'export const ok = 1;\n',
+      '.ai/config.json': { pins: 'error', preship: 'error' },
+    });
+    r = ai(d, 'preship-check.mjs');
+    assert.equal(r.code, 0, r.all);
+    assert.match(r.out, /\[OK\]/);
+  });
+  it('can be turned off', () => {
+    const d = project({ '.ai/config.json': { pins: 'error', preship: 'off' }, 'src/x.js': 'cors()' });
+    const r = ai(d, 'preship-check.mjs');
+    assert.equal(r.code, 0);
+    assert.match(r.out, /\[SKIP\]/);
+  });
+});

@@ -53,6 +53,11 @@ jobs:
       - name: Auth Paths Have Code Owners
         run: node scripts/ai/check-auth-review.mjs
 
+      # BEGIN ai-kit pre-ship security
+      - name: Pre-Ship Security Scan
+        run: node scripts/ai/preship-check.mjs
+      # END ai-kit pre-ship security
+
       - name: Duplicate Code Report
         run: node scripts/ai/dupes.mjs
 

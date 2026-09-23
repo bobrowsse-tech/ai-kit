@@ -119,7 +119,7 @@ A task is complete only when all pass:
 
 Project-specific skills live in `.claude/skills/<name>/SKILL.md` (other agents: symlink or copy that folder to their skills directory).
 
-- Built in: `reuse-first`, `project-bootstrap`, `project-memory`, `verify-and-ship`, `mcp-tools`.
+- Built in: `reuse-first`, `project-bootstrap`, `project-memory`, `verify-and-ship`, `mcp-tools`, `pre-ship-security`.
 - `.claude/skills` is the source of truth. `node scripts/ai/sync-agents.mjs` mirrors it to `.agents/skills` (read by Codex, Cursor, Copilot); the Claude Code Stop hook and pre-commit keep it in sync. Never edit the mirror.
 - `node scripts/ai/detect-stack.mjs --skills` scaffolds `stack-<tech>` skills for the detected architecture; the `project-bootstrap` skill completes them from real code.
 - A skill is short (under ~80 lines), has a trigger-style `description`, cites real file paths, and contains project facts, not generic tutorials.

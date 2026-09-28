@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.6.0
+
+Added
+- Live guard adapters for Codex (`.codex/hooks.json`), GitHub Copilot / VS Code Agent (`.github/hooks/ai-kit.json`), and Gemini CLI (hooks merged into `.gemini/settings.json`).
+- `hook.mjs codex|copilot|gemini` modes on the same shared evaluator as Claude and Cursor; `apply_patch` / Gemini `write_file`/`replace`/`run_shell_command` covered.
+- Installer: per-file `rec.settings` tracking so Claude and Gemini json-merge do not overwrite each other's managed permission lists.
+
+Changed
+- Enforcement docs: all five agents with project hooks get live blocks; pre-commit + CI remain the universal backstop. Codex requires project trust + `/hooks` review; Copilot subagents may bypass hooks; Gemini maps ask → deny for guardrail files.
+
+## 1.5.0
+
+Added
+- Shared live guardrails for Cursor: owned `.cursor/hooks.json` drives the same `scripts/ai/hook.mjs` policy as Claude Code (`beforeShellExecution`, `beforeReadFile`, `beforeTabFileRead`, write-focused `preToolUse`, `stop`).
+- `hook.mjs cursor` adapter emits Cursor permission JSON (required with `failClosed`); Claude `pre-tool` protocol unchanged.
+
+Changed
+- Enforcement docs: Claude Code and Cursor get live hooks; Codex/Copilot/Gemini still rely on `AGENTS.md` plus pre-commit and CI.
+- `guard.guardrailFiles` includes `.cursor/hooks.json`.
+
+## 1.4.0
+
+Added
+- `modern-css-workflows` skill: fluid typography, OKLCH color, subgrid, `:has()`, scroll-driven animations, container style queries, popovers/anchor positioning, pure-CSS counters, and a modern reset (folded in from the modern-css add-on).
+
 ## 1.3.0
 
 Added

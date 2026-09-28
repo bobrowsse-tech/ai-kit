@@ -16,5 +16,5 @@
 
 ## Project Skills
 
-- Built in: `reuse-first`, `project-bootstrap`, `project-memory`, `verify-and-ship`, `mcp-tools`, `pre-ship-security`
+- Built in: `reuse-first`, `project-bootstrap`, `project-memory`, `verify-and-ship`, `mcp-tools`, `pre-ship-security`, `modern-css-workflows`
 - Stack skills: TODO (list `.claude/skills/stack-*` after running project-bootstrap)

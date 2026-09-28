@@ -1,11 +1,27 @@
 {
   "name": "ai-kit",
-  "version": "1.3.0",
+  "version": "1.6.0",
   "$comment": "First matching rule wins; unmatched files are 'seed'. owned: kit-managed, refreshed on --update unless you modified them (then a .kit-new file is written). seed: created once, never touched again (docs, config, CODEOWNERS...). merge-doc: AGENTS.md (a differing existing file gets AGENTS.kit.md next to it). json-merge: settings merged additively; entries the kit previously shipped and later dropped are removed.",
   "rules": [
     {
       "prefix": "scripts/ai/",
       "class": "owned"
+    },
+    {
+      "path": ".cursor/hooks.json",
+      "class": "owned"
+    },
+    {
+      "path": ".codex/hooks.json",
+      "class": "owned"
+    },
+    {
+      "path": ".github/hooks/ai-kit.json",
+      "class": "owned"
+    },
+    {
+      "path": ".gemini/settings.json",
+      "class": "json-merge"
     },
     {
       "prefix": ".claude/skills/reuse-first/",
@@ -29,6 +45,10 @@
     },
     {
       "prefix": ".claude/skills/pre-ship-security/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/modern-css-workflows/",
       "class": "owned"
     },
     {

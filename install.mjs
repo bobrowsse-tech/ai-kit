@@ -45,6 +45,23 @@ const log = { created: [], updated: [], unchanged: [], conflicts: [], keptSeeds:
 
 // ---- settings.json: additive merge; kit-managed entries that were later dropped are removed ----
 const managedOf = (s) => Object.fromEntries(['allow', 'ask', 'deny'].map((k) => [k, (s.permissions && s.permissions[k]) || []]));
+/** Support legacy flat rec.settings (Claude-only) and per-file maps used once Gemini json-merge shipped. */
+function prevManaged(rec, rel) {
+  const s = rec.settings || {};
+  if (Array.isArray(s.allow) || Array.isArray(s.ask) || Array.isArray(s.deny)) {
+    return rel === '.claude/settings.json' ? { allow: s.allow || [], ask: s.ask || [], deny: s.deny || [] } : { allow: [], ask: [], deny: [] };
+  }
+  return s[rel] || { allow: [], ask: [], deny: [] };
+}
+function storeManaged(rec, rel, managed) {
+  let s = rec.settings || {};
+  if (Array.isArray(s.allow) || Array.isArray(s.ask) || Array.isArray(s.deny)) {
+    s = { '.claude/settings.json': { allow: s.allow || [], ask: s.ask || [], deny: s.deny || [] } };
+  }
+  if (!s || typeof s !== 'object' || Array.isArray(s)) s = {};
+  s[rel] = managed;
+  rec.settings = s;
+}
 function mergeSettings(dst, src, prev) {
   const out = JSON.parse(JSON.stringify(dst));
   out.permissions = out.permissions || {};
@@ -81,10 +98,10 @@ for (const rel of files) {
     let dst = null;
     if (exists) { try { dst = JSON.parse(readBuf(abs(rel)).toString('utf8')); } catch { write(`${rel}.kit-new`, srcBuf); log.conflicts.push(`${rel} (not valid JSON; kit version saved as ${rel}.kit-new)`); continue; } }
     if (!dst) { write(rel, JSON.stringify(src, null, 2) + '\n'); log.created.push(rel); } else {
-      const merged = mergeSettings(dst, src, rec.settings || {});
+      const merged = mergeSettings(dst, src, prevManaged(rec, rel));
       if (JSON.stringify(merged) !== JSON.stringify(dst)) { write(rel, JSON.stringify(merged, null, 2) + '\n'); log.merges.push(rel); } else log.unchanged.push(rel);
     }
-    rec.settings = managedOf(src);
+    storeManaged(rec, rel, managedOf(src));
     continue;
   }
   // owned and merge-doc share the same safety logic; merge-doc conflicts go to AGENTS.kit.md

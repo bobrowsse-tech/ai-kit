@@ -74,7 +74,7 @@ Training data is stale. Do not rely on memory when choosing dependencies or writ
 - **Input validation** on every boundary (HTTP, database, shell, file reads) against SQL injection, XSS, command injection.
 - **Least privilege:** minimal shell, filesystem, and network access, limited to the task.
 - **Auth changes** (flows, tokens, privilege levels) need explicit isolated review before merging. `.github/CODEOWNERS` assigns owners to auth-related paths (`scripts/ai/check-auth-review.mjs` warns when one has none); do not merge them without the code owner's review.
-- **Enforcement:** in Claude Code, `.claude/settings.json` and `scripts/ai/hook.mjs` block secret access, secrets in code, destructive commands, and hand-edited lockfiles, and ask the user before guardrail files change. Other agents rely on this file plus CI. If something is blocked, do not look for a workaround: tell the user what you need.
+- **Enforcement:** Claude Code, Cursor, Codex, Copilot, and Gemini CLI all run `scripts/ai/hook.mjs` via their project hook configs (see README). Pre-commit and CI are the universal backstop. If something is blocked, do not look for a workaround: tell the user what you need.
 
 ## 7. Code generation guardrails
 
@@ -119,7 +119,7 @@ A task is complete only when all pass:
 
 Project-specific skills live in `.claude/skills/<name>/SKILL.md` (other agents: symlink or copy that folder to their skills directory).
 
-- Built in: `reuse-first`, `project-bootstrap`, `project-memory`, `verify-and-ship`, `mcp-tools`, `pre-ship-security`.
+- Built in: `reuse-first`, `project-bootstrap`, `project-memory`, `verify-and-ship`, `mcp-tools`, `pre-ship-security`, `modern-css-workflows`.
 - `.claude/skills` is the source of truth. `node scripts/ai/sync-agents.mjs` mirrors it to `.agents/skills` (read by Codex, Cursor, Copilot); the Claude Code Stop hook and pre-commit keep it in sync. Never edit the mirror.
 - `node scripts/ai/detect-stack.mjs --skills` scaffolds `stack-<tech>` skills for the detected architecture; the `project-bootstrap` skill completes them from real code.
 - A skill is short (under ~80 lines), has a trigger-style `description`, cites real file paths, and contains project facts, not generic tutorials.

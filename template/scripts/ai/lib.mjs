@@ -22,9 +22,19 @@ const DEFAULTS = {
   coverage: 'warn', // 'error' | 'warn' | 'off': a coverage threshold must be configured in the test tool
   authReview: 'warn', // 'error' | 'warn' | 'off': auth-related paths must be covered by CODEOWNERS
   preship: 'warn', // 'error' | 'warn' | 'off': scripts/ai/preship-check.mjs (static pre-ship security scan)
-  guard: { // Claude Code PreToolUse guard (scripts/ai/hook.mjs)
+  guard: { // Shared multi-agent guard (scripts/ai/hook.mjs)
     lockfiles: ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb', 'uv.lock', 'poetry.lock', 'Cargo.lock'],
-    guardrailFiles: ['.claude/settings.json', 'scripts/ai/hook.mjs', '.githooks/', '.husky/', '.github/workflows/ai-guardrails.yml'],
+    guardrailFiles: [
+      '.claude/settings.json',
+      '.cursor/hooks.json',
+      '.codex/hooks.json',
+      '.github/hooks/ai-kit.json',
+      '.gemini/settings.json',
+      'scripts/ai/hook.mjs',
+      '.githooks/',
+      '.husky/',
+      '.github/workflows/ai-guardrails.yml',
+    ],
     allowSecretsIn: ['.example', '.sample', '.template', 'fixtures/', '__fixtures__/', 'docs/'],
   },
 };

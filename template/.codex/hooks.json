@@ -1,0 +1,28 @@
+{
+  "description": "ai-kit shared guardrails (same policy as Claude Code / Cursor)",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/ai/hook.mjs codex",
+            "statusMessage": "ai-kit guard"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/ai/hook.mjs stop",
+            "timeout": 60,
+            "statusMessage": "ai-kit stop"
+          }
+        ]
+      }
+    ]
+  }
+}

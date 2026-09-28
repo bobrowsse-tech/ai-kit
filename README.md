@@ -1,4 +1,4 @@
-# AI Project Kit 1.3
+# AI Project Kit 1.6
 
 Drop-in structure, rules, and tooling that make AI agents reuse code instead of regenerating it, spend fewer tokens, learn per project, follow guardrails you can enforce, and use the right MCP servers for the stack. Zero dependencies (Node >= 18).
 
@@ -7,7 +7,7 @@ Drop-in structure, rules, and tooling that make AI agents reuse code instead of 
 Pin as a **devDependency** in the target project (recommended), then install or refresh:
 
 ```bash
-npm install -D @bobrowsse-tech/ai-kit@1.3.0
+npm install -D @bobrowsse-tech/ai-kit@1.6.0
 npx ai-kit install                    # new or existing project (cwd)
 npx ai-kit update                     # refresh kit files, keep everything you customized
 npx ai-kit install --dry-run          # show what would happen
@@ -47,20 +47,29 @@ Every file has one of four classes (`kit.json`, recorded per project in `.ai/kit
 | `find.mjs`, `build-index.mjs`, `dupes.mjs` | Reuse search, generated index (stale = failure), duplicate-block report. |
 | `detect-stack.mjs`, `remember.mjs` | Stack detection and per-technology skills; dated project memory. |
 | `setup-mcp.mjs` | MCP servers: plan, apply, verify, update, check, discover. |
-| `hook.mjs`, `.claude/settings.json` | Claude Code enforcement (below). |
+| `hook.mjs` + agent hook configs | Live enforcement for Claude Code, Cursor, Codex, Copilot, and Gemini CLI (below). |
 | `check-pins`, `check-coverage`, `check-auth-review`, `check-docs`, `preship-check` | CI/pre-commit checks (preship defaults to warn). |
 | `pre-ship-security` skill | 21-point pre-launch review against `docs/security-checklist.md`. |
+| `modern-css-workflows` skill | Modern CSS patterns (fluid type, OKLCH, subgrid, `:has()`, scroll-driven animation, popovers). |
 | `sync-agents.mjs` | Mirrors `.claude/skills` to `.agents/skills` for other agents. |
 | `.github/` | Workflow (JS, Python, e2e, pre-ship scan), Dependabot, PR template, CODEOWNERS. |
 
 On install/update, if `.github/workflows/ai-guardrails.yml` exists but is missing the Pre-Ship Security Scan step, the installer **injects that step only** (custom workflow edits elsewhere are left alone). Set `"preship": "error"` in `.ai/config.json` when you want the scan to fail CI.
-## Enforcement (Claude Code)
+## Enforcement (multi-agent)
 
-`.claude/settings.json` sets permission rules (deny secrets and destructive commands; ask before pushes, installs, network tools, MCP apply/update) and registers two hooks:
-- **PreToolUse guard:** exit 2 blocks reading `.env`/keys/`secrets/` (including via `cat`), writing secrets into code (AWS/GitHub/Slack/Stripe/Google keys, private keys, `apiKey = "..."` patterns), `curl | sh`, `rm -rf` of roots, force pushes, `sudo`, and hand-edits of lockfiles and `.git`. Editing guardrail files (settings, hook, CI, git hooks) prompts the user instead of blocking.
-- **Stop hook:** refreshes the functionality index and the `.agents/skills` mirror after every turn.
+One policy in `scripts/ai/hook.mjs` is registered for every agent that exposes project hooks:
 
-Limits: permission rules and hooks are strong but not a sandbox (a shell can still do things a pattern does not anticipate; a GitHub issue even reports a case where an exit-2 hook did not block a Bash call), so CI repeats the important checks. The guard covers Claude Code only; other agents rely on `AGENTS.md` and CI. Tune it in `.ai/config.json` under `guard`. Project allow rules trigger Claude Code's workspace-trust prompt on first use.
+| Agent | Config | Hook modes |
+|---|---|---|
+| **Claude Code** | `.claude/settings.json` | `pre-tool`, `stop` (+ permission allow/ask/deny lists) |
+| **Cursor** | `.cursor/hooks.json` | `cursor` (`beforeShellExecution`, `beforeReadFile`, write `preToolUse`), `stop` — `failClosed: true`, always emits permission JSON |
+| **Codex** | `.codex/hooks.json` | `codex` (`PreToolUse`, including `Bash` + `apply_patch`), `stop` — project must be **trusted** and each hook definition reviewed via `/hooks` |
+| **Copilot / VS Code Agent** | `.github/hooks/ai-kit.json` | `copilot` (`PreToolUse`), `stop` — cloud agent treats `ask` as deny; background subagents may bypass hooks |
+| **Gemini CLI** | `.gemini/settings.json` (json-merge; MCP apply keeps other keys) | `gemini` (`BeforeTool`), `stop` via `AfterAgent` — no ask; guardrail-file edits are denied with a confirm message |
+
+The guard blocks reading `.env`/keys/`secrets/` (including via `cat`), writing secrets into code (AWS/GitHub/Slack/Stripe/Google keys, private keys, `apiKey = "..."` patterns), `curl | sh`, `rm -rf` of roots, force pushes, `sudo`, and hand-edits of lockfiles and `.git`. Editing guardrail files asks for confirmation where the agent supports it.
+
+**Hard backstop for every agent:** git pre-commit + `ai-guardrails.yml` CI. Hooks are strong but not a sandbox. Tune patterns in `.ai/config.json` under `guard`.
 
 ## Git hooks (no Husky required)
 
@@ -93,7 +102,7 @@ Versions are resolved live from the npm registry (latest stable, non-deprecated,
 ## Testing the kit
 
 ```bash
-npm test          # 115 hermetic tests (no network), node:test
+npm test          # 142 hermetic tests (no network), node:test
 npm run test:live # real npm + MCP registries, real servers; also the scheduled CI job
 ```
 

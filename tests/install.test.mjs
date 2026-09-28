@@ -6,11 +6,11 @@ import { KIT, exists, install, kitCopy, node, posix, put, read, sh, tmp } from '
 
 const json = (d, rel) => JSON.parse(read(d, rel));
 const fresh = (map = {}) => { const d = tmp(); put(d, map); const r = install(d); assert.equal(r.code, 0, r.all); return d; };
-/** A copy of the kit that pretends to be version 1.3.0 after `edit(kitDir)` ran. */
+/** A copy of the kit that pretends to be version 1.6.0 after `edit(kitDir)` ran. */
 function newKit(edit) {
   const k = kitCopy();
   const kj = JSON.parse(fs.readFileSync(path.join(k, 'kit.json'), 'utf8'));
-  kj.version = '1.3.0';
+  kj.version = '1.6.0';
   fs.writeFileSync(path.join(k, 'kit.json'), JSON.stringify(kj, null, 2));
   edit(path.join(k, 'template'), k);
   return k;
@@ -20,7 +20,7 @@ const tpl = (t, rel) => path.join(t, rel);
 describe('fresh install', () => {
   it('creates kit files, records hashes, and installs docs as seeds', () => {
     const d = fresh();
-    for (const f of ['AGENTS.md', 'CLAUDE.md', 'docs/memory.md', 'scripts/ai/hook.mjs', '.claude/settings.json', '.github/CODEOWNERS', '.githooks/pre-commit', '.ai/config.json']) assert.ok(exists(d, f), f);
+    for (const f of ['AGENTS.md', 'CLAUDE.md', 'docs/memory.md', 'scripts/ai/hook.mjs', '.claude/settings.json', '.cursor/hooks.json', '.codex/hooks.json', '.github/hooks/ai-kit.json', '.gemini/settings.json', '.github/CODEOWNERS', '.githooks/pre-commit', '.ai/config.json']) assert.ok(exists(d, f), f);
     const rec = json(d, '.ai/kit.json');
     assert.equal(rec.kitVersion, JSON.parse(fs.readFileSync(path.join(KIT, 'kit.json'), 'utf8')).version);
     assert.match(rec.files['scripts/ai/lib.mjs'], /^[0-9a-f]{64}$/);
@@ -82,27 +82,27 @@ describe('update', () => {
     const d = fresh();
     put(d, { 'docs/index.md': '# my index\n' });
     const k = newKit((t) => {
-      fs.appendFileSync(tpl(t, 'scripts/ai/find.mjs'), '\n// kit 1.3.0\n');
+      fs.appendFileSync(tpl(t, 'scripts/ai/find.mjs'), '\n// kit 1.6.0\n');
       fs.writeFileSync(tpl(t, 'docs/index.md'), '# kit changed the seed\n');
       fs.writeFileSync(tpl(t, 'scripts/ai/brand-new.mjs'), '// new script\n');
     });
     const r = install(d, ['--update'], k);
     assert.equal(r.code, 0, r.all);
-    assert.match(read(d, 'scripts/ai/find.mjs'), /kit 1\.3\.0/);
+    assert.match(read(d, 'scripts/ai/find.mjs'), /kit 1.6.0/);
     assert.ok(exists(d, 'scripts/ai/brand-new.mjs'));
     assert.equal(read(d, 'docs/index.md'), '# my index\n');
-    assert.equal(json(d, '.ai/kit.json').kitVersion, '1.3.0');
+    assert.equal(json(d, '.ai/kit.json').kitVersion, '1.6.0');
     assert.doesNotMatch(r.out, /CONFLICTS/);
   });
   it('never overwrites a kit file you modified: writes .kit-new and reports a conflict', () => {
     const d = fresh();
     fs.appendFileSync(path.join(d, '.github/workflows/ai-guardrails.yml'), '\n# my custom step\n');
-    const k = newKit((t) => fs.appendFileSync(tpl(t, '.github/workflows/ai-guardrails.yml'), '\n# kit 1.3.0\n'));
+    const k = newKit((t) => fs.appendFileSync(tpl(t, '.github/workflows/ai-guardrails.yml'), '\n# kit 1.6.0\n'));
     const r = install(d, ['--update'], k);
     assert.match(r.out, /CONFLICTS[\s\S]*ai-guardrails\.yml/);
     assert.match(read(d, '.github/workflows/ai-guardrails.yml'), /my custom step/);
-    assert.doesNotMatch(read(d, '.github/workflows/ai-guardrails.yml'), /kit 1\.3\.0/);
-    assert.match(read(d, '.github/workflows/ai-guardrails.yml.kit-new'), /kit 1\.3\.0/);
+    assert.doesNotMatch(read(d, '.github/workflows/ai-guardrails.yml'), /kit 1.6.0/);
+    assert.match(read(d, '.github/workflows/ai-guardrails.yml.kit-new'), /kit 1.6.0/);
   });
   it('--force overwrites modified kit files but still not seeds', () => {
     const d = fresh();
@@ -139,10 +139,10 @@ describe('update', () => {
   });
   it('--update --dry-run shows the plan and changes nothing', () => {
     const d = fresh();
-    const k = newKit((t) => fs.appendFileSync(tpl(t, 'scripts/ai/find.mjs'), '\n// kit 1.3.0\n'));
+    const k = newKit((t) => fs.appendFileSync(tpl(t, 'scripts/ai/find.mjs'), '\n// kit 1.6.0\n'));
     const r = install(d, ['--update', '--dry-run'], k);
     assert.match(r.out, /\[dry run\][\s\S]*updated[\s\S]*find\.mjs/);
-    assert.doesNotMatch(read(d, 'scripts/ai/find.mjs'), /kit 1\.3\.0/);
+    assert.doesNotMatch(read(d, 'scripts/ai/find.mjs'), /kit 1.6.0/);
     assert.equal(json(d, '.ai/kit.json').kitVersion, JSON.parse(fs.readFileSync(path.join(KIT, 'kit.json'), 'utf8')).version);
   });
 });
@@ -200,6 +200,18 @@ describe('settings.json merge', () => {
     assert.equal(read(d, '.claude/settings.json'), '{ not json');
     assert.ok(exists(d, '.claude/settings.json.kit-new'));
   });
+  it('merges Gemini hooks without wiping user mcpServers', () => {
+    const d = fresh();
+    put(d, { '.gemini/settings.json': { theme: 'dark', mcpServers: { mine: { command: 'x', args: [] } }, hooks: { BeforeTool: [{ hooks: [{ type: 'command', command: 'my-hook' }] }] } } });
+    const r = install(d);
+    assert.equal(r.code, 0, r.all);
+    const g = json(d, '.gemini/settings.json');
+    assert.equal(g.theme, 'dark');
+    assert.ok(g.mcpServers.mine);
+    assert.ok(g.hooks.BeforeTool.some((x) => JSON.stringify(x).includes('my-hook')));
+    assert.ok(g.hooks.BeforeTool.some((x) => JSON.stringify(x).includes('hook.mjs gemini')));
+    assert.equal(g.hooks.BeforeTool.filter((x) => JSON.stringify(x).includes('hook.mjs')).length, 1);
+  });
 });
 
 describe('full install (with post steps)', { skip: !posix }, () => {
@@ -224,11 +236,13 @@ describe('pre-ship security', () => {
   it('ships the skill, checklist seed, scanner, and CI step on a fresh install', () => {
     const d = fresh();
     assert.ok(exists(d, '.claude/skills/pre-ship-security/SKILL.md'));
+    assert.ok(exists(d, '.claude/skills/modern-css-workflows/SKILL.md'));
     assert.ok(exists(d, 'docs/security-checklist.md'));
     assert.ok(exists(d, 'scripts/ai/preship-check.mjs'));
     assert.match(read(d, '.github/workflows/ai-guardrails.yml'), /preship-check\.mjs/);
     assert.match(read(d, '.github/workflows/ai-guardrails.yml'), /Pre-Ship Security Scan/);
     assert.ok(!('docs/security-checklist.md' in json(d, '.ai/kit.json').files), 'checklist is a seed');
+    assert.ok('.claude/skills/modern-css-workflows/SKILL.md' in json(d, '.ai/kit.json').files, 'modern-css is owned');
   });
   it('injects the CI step into a customized workflow without rewriting the rest', () => {
     const d = tmp();

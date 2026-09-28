@@ -1,0 +1,31 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "name": "ai-kit-guard",
+            "type": "command",
+            "command": "node scripts/ai/hook.mjs gemini",
+            "timeout": 15000,
+            "description": "ai-kit shared secret/destructive-command guard"
+          }
+        ]
+      }
+    ],
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "name": "ai-kit-stop",
+            "type": "command",
+            "command": "node scripts/ai/hook.mjs stop",
+            "timeout": 60000,
+            "description": "Refresh functionality index and skills mirror"
+          }
+        ]
+      }
+    ]
+  }
+}

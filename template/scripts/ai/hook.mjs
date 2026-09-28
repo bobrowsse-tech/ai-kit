@@ -1,39 +1,48 @@
 #!/usr/bin/env node
-// Claude Code hook dispatcher: deterministic guardrails the model cannot talk its way past.
-//   pre-tool  PreToolUse: blocks secret access/leaks, destructive commands, lockfile hand-edits;
-//             asks the user before the agent edits its own guardrail files
-//   stop      Stop: refreshes docs/functionality-index.md and the .agents/skills mirror after each turn
-// Exit 2 blocks (stderr goes to the model). Exit 0 with a permissionDecision "ask" JSON prompts the user.
-// Registered in .claude/settings.json. Other agents rely on AGENTS.md + CI (they have no equivalent hook API here).
+// Shared agent guardrails — one policy, per-agent protocol adapters.
+//   pre-tool  Claude Code PreToolUse (exit 2 = deny; ask JSON; empty allow)
+//   cursor    Cursor hooks (always emit {permission}; required with failClosed)
+//   codex     Codex PreToolUse (Claude-like hookSpecificOutput / exit 2)
+//   copilot   Copilot / VS Code Agent preToolUse (permissionDecision JSON)
+//   gemini    Gemini CLI BeforeTool ({decision, reason} / exit 2)
+//   stop      Refresh functionality-index.md + .agents/skills mirror
+// Registered in .claude/settings.json, .cursor/hooks.json, .codex/hooks.json,
+// .github/hooks/ai-kit.json, and .gemini/settings.json.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-if (process.env.CLAUDE_PROJECT_DIR) process.chdir(process.env.CLAUDE_PROJECT_DIR);
-const { ROOT, loadConfig } = await import('./lib.mjs');
-
+const MODES = new Set(['pre-tool', 'cursor', 'codex', 'copilot', 'gemini', 'stop']);
 const mode = process.argv[2];
-const cfg = loadConfig().guard;
-const deny = (msg) => { console.error(`[ai-kit guard] Blocked: ${msg}`); process.exit(2); };
-const ask = (reason) => {
-  console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: `[ai-kit guard] ${reason}` } }));
-  process.exit(0);
-};
-
-if (mode === 'stop') {
-  const run = (script) => spawnSync(process.execPath, [path.join(ROOT, 'scripts/ai', script)], { cwd: ROOT, stdio: 'ignore', timeout: 60000 });
-  if (fs.existsSync(path.join(ROOT, 'docs/functionality-index.md'))) run('build-index.mjs');
-  if (fs.existsSync(path.join(ROOT, '.claude/skills'))) run('sync-agents.mjs');
-  process.exit(0);
+if (!MODES.has(mode)) {
+  console.error('usage: hook.mjs pre-tool|cursor|codex|copilot|gemini|stop');
+  process.exit(2);
 }
-if (mode !== 'pre-tool') { console.error('usage: hook.mjs pre-tool|stop'); process.exit(2); }
 
 let input = {};
-try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch { process.exit(0); }
-const tool = input.tool_name || '';
-const ti = input.tool_input || {};
+if (mode !== 'stop') {
+  try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); }
+  catch {
+    if (mode === 'cursor') console.log(JSON.stringify({ permission: 'allow' }));
+    else if (mode === 'copilot') console.log(JSON.stringify({ permissionDecision: 'allow' }));
+    else if (mode === 'gemini') console.log(JSON.stringify({ decision: 'allow' }));
+    process.exit(0);
+  }
+}
 
-// ---- helpers ----
+const rootHint = process.env.CLAUDE_PROJECT_DIR
+  || process.env.GEMINI_PROJECT_DIR
+  || (input.cwd && fs.existsSync(input.cwd) ? input.cwd : null)
+  || (Array.isArray(input.workspace_roots) && input.workspace_roots[0])
+  || null;
+if (rootHint) {
+  try { process.chdir(rootHint); } catch { /* keep cwd */ }
+}
+
+const { ROOT, loadConfig } = await import('./lib.mjs');
+const cfg = loadConfig().guard;
+
+// ---- shared helpers ----
 const ENV_FILE = /(^|\/)\.env(\.[^/]+)?$/;
 const ENV_SAFE = /\.(example|sample|template|dist)$/;
 const isEnvFile = (p) => ENV_FILE.test(p) && !ENV_SAFE.test(p);
@@ -77,27 +86,196 @@ function checkBash(cmd) {
   return null;
 }
 
-// ---- pre-tool ----
-if (tool === 'Bash') {
-  const why = checkBash(String(ti.command || ''));
-  if (why) deny(why);
+/** @returns {{ decision: 'allow'|'deny'|'ask', reason?: string }} */
+function evaluateFile(filePath, { writing, texts = [] } = {}) {
+  if (!filePath) return { decision: 'allow' };
+  const r = rel(String(filePath));
+  if (sensitive(r)) return { decision: 'deny', reason: `${r} is a secrets file. Ask the user for the specific value or use an environment variable reference.` };
+  if (!writing) return { decision: 'allow' };
+  if (/(^|\/)\.git\//.test(r)) return { decision: 'deny', reason: 'editing .git internals is not allowed' };
+  if (cfg.lockfiles.includes(path.posix.basename(r))) {
+    return { decision: 'deny', reason: `${path.posix.basename(r)} is authoritative; change dependencies with the package manager (after user approval), never by hand` };
+  }
+  if (!cfg.allowSecretsIn.some((a) => r.includes(a))) {
+    const kind = texts.map(scanSecrets).find(Boolean);
+    if (kind) return { decision: 'deny', reason: `the change contains what looks like a ${kind}. Use an environment variable (.env, gitignored) and add the key name to .env.example.` };
+  }
+  if (cfg.guardrailFiles.some((g) => (g.endsWith('/') ? r.startsWith(g) : r === g))) {
+    return { decision: 'ask', reason: `${r} is a guardrail file (permissions, hooks, or CI). Confirm the change is intended.` };
+  }
+  return { decision: 'allow' };
+}
+
+function toolTexts(ti) {
+  return [ti.content, ti.contents, ti.new_string, ti.new_source, ti.old_string, ...((ti.edits || []).map((e) => e.new_string))]
+    .filter((x) => typeof x === 'string');
+}
+
+function toolPath(ti) {
+  return ti.file_path || ti.path || ti.absolute_path || ti.notebook_path || ti.target_file || null;
+}
+
+function shellCommand(ti) {
+  if (typeof ti.command === 'string') return ti.command;
+  if (Array.isArray(ti.command)) return ti.command.join(' ');
+  if (typeof ti.cmd === 'string') return ti.cmd;
+  return '';
+}
+
+function parseApplyPatchPaths(patch) {
+  const paths = [];
+  for (const m of String(patch).matchAll(/^\*\*\* (?:Update|Add|Delete) File:\s*(.+)$/gm)) paths.push(m[1].trim());
+  for (const m of String(patch).matchAll(/^diff --git a\/(.+?) b\//gm)) paths.push(m[1].trim());
+  return paths;
+}
+
+/** Normalize any agent tool call into a shared decision. */
+function evaluateToolUse(toolName, tiRaw) {
+  let ti = tiRaw || {};
+  if (typeof ti === 'string') {
+    try { ti = JSON.parse(ti); } catch { ti = { command: ti }; }
+  }
+  const tool = String(toolName || '');
+
+  if (/^(Bash|Shell|bash|shell|powershell|run_shell_command)$/i.test(tool)) {
+    const why = checkBash(shellCommand(ti));
+    if (why) return { decision: 'deny', reason: why };
+    return { decision: 'allow' };
+  }
+
+  if (/^apply_patch$/i.test(tool)) {
+    const patch = shellCommand(ti) || String(ti.patch || '');
+    const kind = scanSecrets(patch);
+    if (kind) return { decision: 'deny', reason: `the change contains what looks like a ${kind}. Use an environment variable (.env, gitignored) and add the key name to .env.example.` };
+    for (const p of parseApplyPatchPaths(patch)) {
+      const r = evaluateFile(p, { writing: true, texts: [patch] });
+      if (r.decision !== 'allow') return r;
+    }
+    return { decision: 'allow' };
+  }
+
+  if (/^(Read|view|read_file|Grep|grep|rg|Glob|glob|list_directory)$/i.test(tool)) {
+    const p = toolPath(ti) || ti.pattern || '';
+    if (typeof p === 'string' && (p.includes('/') || p.startsWith('.'))) return evaluateFile(p, { writing: false });
+    return { decision: 'allow' };
+  }
+
+  if (/^(Write|Edit|MultiEdit|NotebookEdit|StrReplace|Delete|ApplyPatch|create|write_file|replace|str_replace_editor)$/i.test(tool)
+    || /write|edit|delete|patch|strreplace|replace/i.test(tool)) {
+    return evaluateFile(toolPath(ti), { writing: true, texts: toolTexts(ti) });
+  }
+
+  // Unknown tool: allow (do not block MCP etc. by default).
+  return { decision: 'allow' };
+}
+
+function runStop() {
+  const run = (script) => spawnSync(process.execPath, [path.join(ROOT, 'scripts/ai', script)], { cwd: ROOT, stdio: 'ignore', timeout: 60000 });
+  if (fs.existsSync(path.join(ROOT, 'docs/functionality-index.md'))) run('build-index.mjs');
+  if (fs.existsSync(path.join(ROOT, '.claude/skills'))) run('sync-agents.mjs');
+  // Emit empty JSON so Gemini (and similar) do not warn on empty stdout.
+  console.log('{}');
   process.exit(0);
 }
 
-const filePath = ti.file_path || ti.notebook_path;
-if (filePath) {
-  const r = rel(String(filePath));
-  const writing = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(tool);
-  if (sensitive(r)) deny(`${r} is a secrets file. Ask the user for the specific value or use an environment variable reference.`);
-  if (writing) {
-    if (/(^|\/)\.git\//.test(r)) deny('editing .git internals is not allowed');
-    if (cfg.lockfiles.includes(path.posix.basename(r))) deny(`${path.posix.basename(r)} is authoritative; change dependencies with the package manager (after user approval), never by hand`);
-    const texts = [ti.content, ti.new_string, ti.new_source, ...((ti.edits || []).map((e) => e.new_string))].filter((x) => typeof x === 'string');
-    if (!cfg.allowSecretsIn.some((a) => r.includes(a))) {
-      const kind = texts.map(scanSecrets).find(Boolean);
-      if (kind) deny(`the change contains what looks like a ${kind}. Use an environment variable (.env, gitignored) and add the key name to .env.example.`);
-    }
-    if (cfg.guardrailFiles.some((g) => (g.endsWith('/') ? r.startsWith(g) : r === g))) ask(`${r} is a guardrail file (permissions, hooks, or CI). Confirm the change is intended.`);
-  }
+if (mode === 'stop') runStop();
+
+// ---- Claude Code ----
+if (mode === 'pre-tool') {
+  const deny = (msg) => { console.error(`[ai-kit guard] Blocked: ${msg}`); process.exit(2); };
+  const ask = (reason) => {
+    console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: `[ai-kit guard] ${reason}` } }));
+    process.exit(0);
+  };
+  const result = evaluateToolUse(input.tool_name, input.tool_input);
+  if (result.decision === 'deny') deny(result.reason);
+  if (result.decision === 'ask') ask(result.reason);
+  process.exit(0);
 }
-process.exit(0);
+
+// ---- Cursor ----
+if (mode === 'cursor') {
+  const out = (permission, reason) => {
+    const msg = reason ? `[ai-kit guard] ${reason}` : undefined;
+    const body = { permission };
+    if (permission !== 'allow' && msg) { body.user_message = msg; body.agent_message = msg; }
+    console.log(JSON.stringify(body));
+    process.exit(0);
+  };
+  const event = input.hook_event_name || '';
+  if (event === 'beforeShellExecution') {
+    const why = checkBash(String(input.command || ''));
+    if (why) out('deny', why);
+    out('allow');
+  }
+  if (event === 'beforeReadFile' || event === 'beforeTabFileRead') {
+    const result = evaluateFile(input.file_path || '', { writing: false });
+    if (result.decision === 'deny') out('deny', result.reason);
+    out('allow');
+  }
+  if (event === 'preToolUse') {
+    const tool = input.tool_name || '';
+    if (tool === 'Shell' || tool === 'Bash' || tool === 'Read' || tool === 'Grep') out('allow');
+    const result = evaluateToolUse(tool, input.tool_input);
+    out(result.decision, result.reason);
+  }
+  out('allow');
+}
+
+// ---- Codex (Claude-like PreToolUse) ----
+if (mode === 'codex') {
+  const event = input.hook_event_name || 'PreToolUse';
+  if (event === 'Stop' || event === 'stop') runStop();
+  const deny = (msg) => {
+    console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `[ai-kit guard] ${msg}` } }));
+    process.exit(0);
+  };
+  const ask = (reason) => {
+    console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: `[ai-kit guard] ${reason}` } }));
+    process.exit(0);
+  };
+  const result = evaluateToolUse(input.tool_name, input.tool_input);
+  if (result.decision === 'deny') deny(result.reason);
+  if (result.decision === 'ask') ask(result.reason);
+  process.exit(0);
+}
+
+// ---- Copilot / VS Code Agent ----
+if (mode === 'copilot') {
+  const event = input.hook_event_name || input.eventName || '';
+  if (/^stop$/i.test(event) || event === 'agentStop') runStop();
+  const tool = input.tool_name || input.toolName || '';
+  const ti = input.tool_input || input.toolArgs || {};
+  const result = evaluateToolUse(tool, ti);
+  const decision = result.decision === 'ask' ? 'ask' : result.decision;
+  const body = { permissionDecision: decision };
+  if (decision !== 'allow' && result.reason) body.permissionDecisionReason = `[ai-kit guard] ${result.reason}`;
+  // Also emit Claude-shaped output for PascalCase PreToolUse / VS Code Agent hooks.
+  if (decision !== 'allow') {
+    body.hookSpecificOutput = {
+      hookEventName: 'PreToolUse',
+      permissionDecision: decision,
+      permissionDecisionReason: body.permissionDecisionReason,
+    };
+  }
+  console.log(JSON.stringify(body));
+  process.exit(0);
+}
+
+// ---- Gemini CLI ----
+if (mode === 'gemini') {
+  const event = input.hook_event_name || '';
+  if (event === 'AfterAgent' || event === 'SessionEnd') runStop();
+  const result = evaluateToolUse(input.tool_name, input.tool_input);
+  if (result.decision === 'deny') {
+    console.log(JSON.stringify({ decision: 'deny', reason: `[ai-kit guard] ${result.reason}` }));
+    process.exit(0);
+  }
+  if (result.decision === 'ask') {
+    // Gemini BeforeTool has no ask — deny with a clear reason so the agent stops.
+    console.log(JSON.stringify({ decision: 'deny', reason: `[ai-kit guard] ${result.reason} (confirm with a human before editing guardrail files)` }));
+    process.exit(0);
+  }
+  console.log(JSON.stringify({ decision: 'allow' }));
+  process.exit(0);
+}

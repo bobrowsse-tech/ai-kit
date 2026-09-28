@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      { "command": "node scripts/ai/hook.mjs cursor", "failClosed": true }
+    ],
+    "beforeReadFile": [
+      { "command": "node scripts/ai/hook.mjs cursor", "failClosed": true }
+    ],
+    "beforeTabFileRead": [
+      { "command": "node scripts/ai/hook.mjs cursor", "failClosed": true }
+    ],
+    "preToolUse": [
+      {
+        "command": "node scripts/ai/hook.mjs cursor",
+        "matcher": "Write|StrReplace|Edit|Delete|ApplyPatch|MultiEdit|NotebookEdit",
+        "failClosed": true
+      }
+    ],
+    "stop": [
+      { "command": "node scripts/ai/hook.mjs stop" }
+    ]
+  }
+}

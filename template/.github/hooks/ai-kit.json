@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "node scripts/ai/hook.mjs copilot",
+        "timeoutSec": 15,
+        "matcher": "*"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node scripts/ai/hook.mjs stop",
+        "timeoutSec": 60
+      }
+    ]
+  }
+}

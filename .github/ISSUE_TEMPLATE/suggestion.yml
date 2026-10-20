@@ -1,0 +1,11 @@
+name: Suggestion
+description: Suggest a change. This does not open a pull request.
+title: "suggestion: "
+labels: ["suggestion"]
+body:
+  - type: textarea
+    attributes:
+      label: Suggestion
+      description: What should change, and why.
+    validations:
+      required: true

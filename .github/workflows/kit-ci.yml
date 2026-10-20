@@ -66,3 +66,18 @@ jobs:
         with:
           node-version: "22"
       - run: npm run test:live
+
+  # Aggregate check name used by branch protection (contexts: ["CI"]).
+  # Matrix jobs report one check per cell; requiring those names never goes green.
+  ci-success:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [test, test-windows, lint-workflows]
+    if: always()
+    steps:
+      - name: Require every required CI job
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.test-windows.result }}" != "success" ] || [ "${{ needs.lint-workflows.result }}" != "success" ]; then
+            echo "test=${{ needs.test.result }} test-windows=${{ needs.test-windows.result }} lint-workflows=${{ needs.lint-workflows.result }}"
+            exit 1
+          fi

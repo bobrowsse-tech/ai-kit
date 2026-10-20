@@ -2,6 +2,10 @@
 
 Drop-in structure, rules, and tooling that make AI agents reuse code instead of regenerating it, spend fewer tokens, learn per project, follow guardrails you can enforce, and use the right MCP servers for the stack. Zero dependencies (Node >= 18).
 
+**npm:** [`@bobrowsse-tech/ai-kit`](https://www.npmjs.com/package/@bobrowsse-tech/ai-kit) · **Source:** [bobrowsse-tech/ai-kit](https://github.com/bobrowsse-tech/ai-kit)
+
+Bugs and ideas: open an [issue](https://github.com/bobrowsse-tech/ai-kit/issues). Pull requests are limited to maintainers — see [CONTRIBUTING.md](./CONTRIBUTING.md). Security reports: [SECURITY.md](./SECURITY.md).
+
 ## Install and update
 
 Pin as a **devDependency** in the target project (recommended), then install or refresh:

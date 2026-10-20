@@ -1,0 +1,55 @@
+name: Restrict PR Authors
+
+# GitHub's branch protection can restrict who can PUSH to a protected branch
+# (that's what scripts/setup-branch-protection.sh configures), but on a
+# public repo it has no setting for "who may OPEN a pull request" — anyone
+# can fork a public repo and PR from it. This workflow is the practical
+# substitute: it auto-closes any PR whose author isn't in ALLOWED_AUTHORS,
+# with a comment explaining how to contribute instead (open an issue).
+#
+# Keep ALLOWED_AUTHORS in sync with .github/CODEOWNERS and the maintainer
+# list passed to scripts/setup-branch-protection.sh.
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+env:
+  ALLOWED_AUTHORS: "bobrowsse-tech"
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check author against allow-list
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const allowed = process.env.ALLOWED_AUTHORS.split(",").map(s => s.trim());
+            const author = context.payload.pull_request.user.login;
+            if (allowed.includes(author)) {
+              console.log(`${author} is an allowed PR author.`);
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body:
+                "Thanks for the interest in AI Project Kit! This repository only accepts pull " +
+                "requests from its maintainer(s) — please open an **issue** describing the " +
+                "bug or feature instead, and a maintainer will pick it up or invite you to " +
+                "submit the change a different way. Closing this PR automatically; nothing " +
+                "personal, it's a repo-wide policy.",
+            });
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              state: "closed",
+            });

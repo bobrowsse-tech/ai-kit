@@ -1,0 +1,4 @@
+# Every path requires review/approval from the maintainer(s) below.
+# Combined with branch protection (required reviews + restricted PR authors),
+# this is what keeps main locked down even though the repo is open source.
+* @bobrowsse-tech

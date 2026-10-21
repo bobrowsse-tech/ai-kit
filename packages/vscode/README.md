@@ -1,6 +1,6 @@
 # AI Project Kit
 
-![AI Project Kit](./media/banner.png)
+![AI Project Kit](https://github.com/bobrowsse-tech/ai-kit/raw/HEAD/packages/vscode/media/banner.png)
 
 Drop the AI Project Kit into the folder you have open — rules, living docs, multi-agent guardrails, and MCP setup — using the **same engine** as the npm CLI [`@bobrowsse-tech/ai-kit`](https://www.npmjs.com/package/@bobrowsse-tech/ai-kit).
 
@@ -10,7 +10,7 @@ Works in **VS Code**, **Cursor**, **VSCodium**, and other Open VSX–compatible 
 
 ## Install
 
-1. Install **AI Project Kit** from the VS Code Marketplace or [Open VSX](https://open-vsx.org/extension/bobrowsse-tech/ai-kit) (links go live with the first publish).
+1. Install **AI Project Kit** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bobrowsse-tech.ai-kit) or [Open VSX](https://open-vsx.org/extension/bobrowsse-tech/ai-kit).
 2. Open a project folder.
 3. Open the Command Palette and run **AI Kit: Initialize Project** (or open the walkthrough: **Welcome: Open Walkthrough…** → **Get started with AI Project Kit**).
 

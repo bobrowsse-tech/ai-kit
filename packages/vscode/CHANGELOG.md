@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+Fixed
+- The Marketplace and Open VSX listing banner loads from `packages/vscode/media/banner.png`.
+
 ## 0.1.0
 
 Added

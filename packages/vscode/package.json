@@ -2,7 +2,7 @@
   "name": "ai-kit",
   "displayName": "AI Project Kit",
   "description": "Install and refresh the AI Project Kit (rules, docs, guardrails, MCP setup) in the open workspace — same engine as the npm CLI.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "bobrowsse-tech",
   "icon": "media/icon.png",
   "galleryBanner": {

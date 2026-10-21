@@ -43,13 +43,22 @@ const { ROOT, loadConfig } = await import('./lib.mjs');
 const cfg = loadConfig().guard;
 
 // ---- shared helpers ----
-const ENV_FILE = /(^|\/)\.env(\.[^/]+)?$/;
-const ENV_SAFE = /\.(example|sample|template|dist)$/;
-const isEnvFile = (p) => ENV_FILE.test(p) && !ENV_SAFE.test(p);
-const SECRET_PATH = [/(^|\/)secrets?\//, /\.(pem|p12|pfx)$/, /(^|\/)id_(rsa|dsa|ecdsa|ed25519)$/, /(^|\/)\.aws\/credentials$/];
-const sensitive = (p) => isEnvFile(p) || SECRET_PATH.some((r) => r.test(p));
+// Separators: accept / and \ so Windows absolute paths match even before norm().
+const ENV_FILE = /(^|[\\/])\.env(\.[^\\/]+)?$/i;
+const ENV_SAFE = /\.(example|sample|template|dist)$/i;
+const isEnvFile = (p) => ENV_FILE.test(String(p)) && !ENV_SAFE.test(String(p));
+const SECRET_PATH = [
+  /(^|[\\/])secrets?[\\/]/i,
+  /\.(pem|p12|pfx)$/i,
+  /(^|[\\/])id_(rsa|dsa|ecdsa|ed25519)$/i,
+  /(^|[\\/])\.aws[\\/]credentials$/i,
+];
 /** Slash-normalize; fold drive letter so Windows short-name / case mismatches still match. */
-const norm = (p) => String(p).replace(/\\/g, '/').replace(/^\.\//, '').replace(/^([a-zA-Z]):/, (_, d) => `${d.toUpperCase()}:`);
+const norm = (p) => String(p).replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\.\//, '').replace(/^([a-zA-Z]):/, (_, d) => `${d.toUpperCase()}:`);
+const sensitive = (p) => {
+  const n = norm(p);
+  return isEnvFile(n) || isEnvFile(path.posix.basename(n)) || SECRET_PATH.some((r) => r.test(n));
+};
 /**
  * Project-relative path for policy checks. On Windows, path.relative(ROOT, abs) can escape when
  * cwd uses an 8.3 short path and the tool passes a long path (or drive-letter case differs).
@@ -64,11 +73,8 @@ const rel = (p) => {
   if (!r || r === '.' || r.startsWith('../') || /^[A-Za-z]:/.test(r)) return norm(abs);
   return r;
 };
-/** True when any path form (relative, absolute, basename) is a secrets path. */
-const sensitiveAny = (p) => {
-  const r = rel(p);
-  return sensitive(r) || sensitive(norm(p)) || isEnvFile(path.posix.basename(norm(p)));
-};
+/** True when any path form (relative, absolute, basename) is a secrets path. Always norms first. */
+const sensitiveAny = (p) => sensitive(rel(p)) || sensitive(p);
 
 const SECRETS = [
   [/-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----/, 'private key'],
@@ -115,7 +121,7 @@ function evaluateFile(filePath, { writing, texts = [] } = {}) {
     return { decision: 'deny', reason: `${label} is a secrets file. Ask the user for the specific value or use an environment variable reference.` };
   }
   if (!writing) return { decision: 'allow' };
-  if (/(^|\/)\.git\//.test(r) || /(^|\/)\.git\//.test(norm(raw))) {
+  if (/(^|[\\/])\.git([\\/]|$)/i.test(r) || /(^|[\\/])\.git([\\/]|$)/i.test(norm(raw))) {
     return { decision: 'deny', reason: 'editing .git internals is not allowed' };
   }
   const base = path.posix.basename(r.includes('/') || r.includes(':') ? r : norm(raw));

@@ -56,6 +56,16 @@ describe('guard: blocks (exit 2)', () => {
     const r = file('Read', 'apps\\web\\.env.local');
     assert.equal(r.code, 2, r.all);
   });
+  it('blocks Windows-style absolute .env with backslashes and lowercase drive', () => {
+    // Raw tool paths may keep "\" and a lowercase drive letter; must not bypass ENV_FILE.
+    const winAbs = 'c:\\Users\\runner\\AppData\\Local\\Temp\\proj\\.env';
+    const r = file('Read', winAbs);
+    assert.equal(r.code, 2, r.all);
+    assert.match(r.err, /\[ai-kit guard\] Blocked/);
+  });
+  it('blocks secrets dir with backslash separators', () => {
+    assert.equal(file('Read', 'secrets\\prod.json').code, 2);
+  });
 });
 
 describe('guard: allows (exit 0, no decision)', () => {

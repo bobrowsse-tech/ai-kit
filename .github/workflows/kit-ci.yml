@@ -28,7 +28,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: npm install
+          cache: npm
+      # Workspaces need an install so @bobrowsse-tech/ai-kit-core resolves under node_modules.
+      - run: npm ci
       - run: npm test
 
   test-windows:
@@ -39,7 +41,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm install
+          cache: npm
+      - run: npm ci
       - run: npm test
 
   lint-workflows:
@@ -55,7 +58,7 @@ jobs:
           curl -fsSL -o /tmp/download-actionlint.bash "https://raw.githubusercontent.com/rhysd/actionlint/v${ACTIONLINT_VERSION}/scripts/download-actionlint.bash"
           bash /tmp/download-actionlint.bash "${ACTIONLINT_VERSION}" /tmp
       - name: Lint the kit workflow and the workflow it ships to projects
-        run: /tmp/actionlint -color .github/workflows/kit-ci.yml .github/workflows/publish.yml packages/core/template/.github/workflows/ai-guardrails.yml
+        run: /tmp/actionlint -color .github/workflows/kit-ci.yml .github/workflows/publish.yml .github/workflows/publish-extension.yml packages/core/template/.github/workflows/ai-guardrails.yml
 
   live-smoke:
     name: Live smoke (real npm + MCP registries, real servers)
@@ -67,6 +70,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+      - run: npm ci
       - run: npm run test:live
 
   # Aggregate check name used by branch protection (contexts: ["CI"]).

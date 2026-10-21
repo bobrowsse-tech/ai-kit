@@ -2,7 +2,8 @@
 # Trigger: push to main that changes packages/vscode/package.json version, or manual.
 # HUMAN prerequisites (do not put secrets in the repo):
 #   - VSCE_PAT (Marketplace) until Azure OIDC is wired
-#   - OVSX_TOKEN for the first Open VSX version; then trusted publishing (env open-vsx)
+#   - Open VSX uses trusted publishing (publish-extension.yml, environment open-vsx).
+#     Do not pass OVSX_PAT; a PAT overrides the OIDC token.
 #   - DIRECTORY_DISPATCH_TOKEN → refresh https://bobrowsse-tech.github.io/vscode-extensions/
 name: Publish Extension
 
@@ -83,17 +84,12 @@ jobs:
           if [ -z "$VSCE_PAT" ]; then echo "Missing repo secret VSCE_PAT"; exit 1; fi
           npx --yes @vscode/vsce publish --packagePath ai-kit.vsix --pat "$VSCE_PAT"
 
-      # First version needs a PAT (OVSX_TOKEN). After it is live, register a trusted publisher
-      # for publish-extension.yml + environment open-vsx, then switch this step to
-      # `ovsx@1.3.0 publish … --trusted-publishing --skip-duplicate` and drop --pat.
+      # Trusted publisher: bobrowsse-tech/ai-kit, workflow publish-extension.yml, environment open-vsx.
+      # Do not set OVSX_PAT or --pat. A PAT wins over --trusted-publishing.
       # No skip gate: a Marketplace skip is success(), so this still runs on retry.
       # A failed gate or Marketplace publish does not.
       - name: Publish to Open VSX
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_TOKEN }}
-        run: |
-          if [ -z "$OVSX_PAT" ]; then echo "Missing repo secret OVSX_TOKEN"; exit 1; fi
-          npx --yes ovsx@1.3.0 publish ai-kit.vsix --pat "$OVSX_PAT" --skip-duplicate
+        run: npx --yes ovsx@1.3.0 publish ai-kit.vsix --trusted-publishing --skip-duplicate
 
       - name: Refresh extension directory
         if: ${{ !cancelled() }}

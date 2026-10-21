@@ -99,8 +99,13 @@ describe('CLI golden: install tree and content hashes', () => {
 describe('npm pack baseline', () => {
   it('published file list matches tests/fixtures/npm-pack-baseline.txt', () => {
     // --ignore-scripts: staging already ran via `npm test` / `npm run stage`; avoids prepack logs on stdout.
-    const r = spawnSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: KIT, encoding: 'utf8' });
-    assert.equal(r.status, 0, r.stderr);
+    // Windows ships npm as npm.cmd; spawn without a shell returns status null (ENOENT).
+    const r = spawnSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+      cwd: KIT,
+      encoding: 'utf8',
+      shell: process.platform === 'win32',
+    });
+    assert.equal(r.status, 0, r.stderr || r.error?.message);
     const j = JSON.parse(r.stdout);
     // Ignore vendored engine paths for the public surface check; require them to exist separately.
     const files = (j[0]?.files || []).map((f) => f.path).sort();

@@ -48,8 +48,27 @@ const ENV_SAFE = /\.(example|sample|template|dist)$/;
 const isEnvFile = (p) => ENV_FILE.test(p) && !ENV_SAFE.test(p);
 const SECRET_PATH = [/(^|\/)secrets?\//, /\.(pem|p12|pfx)$/, /(^|\/)id_(rsa|dsa|ecdsa|ed25519)$/, /(^|\/)\.aws\/credentials$/];
 const sensitive = (p) => isEnvFile(p) || SECRET_PATH.some((r) => r.test(p));
-const norm = (p) => p.replace(/\\/g, '/').replace(/^\.\//, '');
-const rel = (p) => norm(path.isAbsolute(p) ? path.relative(ROOT, p) : path.normalize(p));
+/** Slash-normalize; fold drive letter so Windows short-name / case mismatches still match. */
+const norm = (p) => String(p).replace(/\\/g, '/').replace(/^\.\//, '').replace(/^([a-zA-Z]):/, (_, d) => `${d.toUpperCase()}:`);
+/**
+ * Project-relative path for policy checks. On Windows, path.relative(ROOT, abs) can escape when
+ * cwd uses an 8.3 short path and the tool passes a long path (or drive-letter case differs).
+ * Fall back to the absolute normalized form so .env / secrets/ still match.
+ */
+const rel = (p) => {
+  const raw = String(p);
+  if (!path.isAbsolute(raw) && !/^[A-Za-z]:[\\/]/.test(raw)) return norm(path.normalize(raw));
+  const abs = path.resolve(raw);
+  let r = path.relative(path.resolve(ROOT), abs);
+  r = norm(r);
+  if (!r || r === '.' || r.startsWith('../') || /^[A-Za-z]:/.test(r)) return norm(abs);
+  return r;
+};
+/** True when any path form (relative, absolute, basename) is a secrets path. */
+const sensitiveAny = (p) => {
+  const r = rel(p);
+  return sensitive(r) || sensitive(norm(p)) || isEnvFile(path.posix.basename(norm(p)));
+};
 
 const SECRETS = [
   [/-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----/, 'private key'],
@@ -80,8 +99,8 @@ function checkBash(cmd) {
     if (t[0] === 'rm' && flags.some((f) => /^-[a-zA-Z]*[rR]/.test(f) || f === '--recursive') && args.some((a) => DANGEROUS_TARGETS.has(a) || /^\/(usr|etc|var|bin|lib|home|root)\b/.test(a))) return 'recursive delete of a root, home, or wildcard target';
     if (t[0] === 'git' && t.includes('push') && (t.includes('--force') || flags.some((f) => /^-[a-zA-Z]*f/.test(f) && !f.startsWith('--')))) return 'force push is not allowed (use a normal push or --force-with-lease after asking the user)';
     if (t[0] === 'chmod' && flags.includes('-R') && args.includes('777')) return 'chmod -R 777 is not allowed';
-    if (READERS.has(t[0]) && t.slice(1).some((x) => !x.startsWith('-') && sensitive(norm(x)))) return 'reading secret files (.env, keys, secrets/) is not allowed; ask the user for the specific value you need';
-    if (COPIERS.has(t[0]) && t.slice(1, -1).some((x) => !x.startsWith('-') && sensitive(norm(x)))) return 'copying secret files is not allowed';
+    if (READERS.has(t[0]) && t.slice(1).some((x) => !x.startsWith('-') && sensitiveAny(x))) return 'reading secret files (.env, keys, secrets/) is not allowed; ask the user for the specific value you need';
+    if (COPIERS.has(t[0]) && t.slice(1, -1).some((x) => !x.startsWith('-') && sensitiveAny(x))) return 'copying secret files is not allowed';
   }
   return null;
 }
@@ -89,18 +108,28 @@ function checkBash(cmd) {
 /** @returns {{ decision: 'allow'|'deny'|'ask', reason?: string }} */
 function evaluateFile(filePath, { writing, texts = [] } = {}) {
   if (!filePath) return { decision: 'allow' };
-  const r = rel(String(filePath));
-  if (sensitive(r)) return { decision: 'deny', reason: `${r} is a secrets file. Ask the user for the specific value or use an environment variable reference.` };
-  if (!writing) return { decision: 'allow' };
-  if (/(^|\/)\.git\//.test(r)) return { decision: 'deny', reason: 'editing .git internals is not allowed' };
-  if (cfg.lockfiles.includes(path.posix.basename(r))) {
-    return { decision: 'deny', reason: `${path.posix.basename(r)} is authoritative; change dependencies with the package manager (after user approval), never by hand` };
+  const raw = String(filePath);
+  const r = rel(raw);
+  if (sensitiveAny(raw)) {
+    const label = sensitive(r) || isEnvFile(path.posix.basename(r)) ? r : path.posix.basename(norm(raw));
+    return { decision: 'deny', reason: `${label} is a secrets file. Ask the user for the specific value or use an environment variable reference.` };
   }
-  if (!cfg.allowSecretsIn.some((a) => r.includes(a))) {
+  if (!writing) return { decision: 'allow' };
+  if (/(^|\/)\.git\//.test(r) || /(^|\/)\.git\//.test(norm(raw))) {
+    return { decision: 'deny', reason: 'editing .git internals is not allowed' };
+  }
+  const base = path.posix.basename(r.includes('/') || r.includes(':') ? r : norm(raw));
+  if (cfg.lockfiles.includes(base) || cfg.lockfiles.includes(path.posix.basename(norm(raw)))) {
+    return { decision: 'deny', reason: `${base} is authoritative; change dependencies with the package manager (after user approval), never by hand` };
+  }
+  if (!cfg.allowSecretsIn.some((a) => r.includes(a) || norm(raw).includes(a))) {
     const kind = texts.map(scanSecrets).find(Boolean);
     if (kind) return { decision: 'deny', reason: `the change contains what looks like a ${kind}. Use an environment variable (.env, gitignored) and add the key name to .env.example.` };
   }
-  if (cfg.guardrailFiles.some((g) => (g.endsWith('/') ? r.startsWith(g) : r === g))) {
+  if (cfg.guardrailFiles.some((g) => {
+    if (g.endsWith('/')) return r.startsWith(g) || norm(raw).includes(`/${g}`);
+    return r === g || norm(raw).endsWith(`/${g}`) || path.posix.basename(norm(raw)) === path.posix.basename(g);
+  })) {
     return { decision: 'ask', reason: `${r} is a guardrail file (permissions, hooks, or CI). Confirm the change is intended.` };
   }
   return { decision: 'allow' };
@@ -156,7 +185,10 @@ function evaluateToolUse(toolName, tiRaw) {
 
   if (/^(Read|view|read_file|Grep|grep|rg|Glob|glob|list_directory)$/i.test(tool)) {
     const p = toolPath(ti) || ti.pattern || '';
-    if (typeof p === 'string' && (p.includes('/') || p.startsWith('.'))) return evaluateFile(p, { writing: false });
+    // Evaluate any path-like string, including Windows backslashes and drive letters.
+    if (typeof p === 'string' && (p.includes('/') || p.includes('\\') || p.startsWith('.') || /^[A-Za-z]:/.test(p))) {
+      return evaluateFile(p, { writing: false });
+    }
     return { decision: 'allow' };
   }
 

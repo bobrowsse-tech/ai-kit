@@ -28,6 +28,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      - run: npm install
       - run: npm test
 
   test-windows:
@@ -38,6 +39,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - run: npm install
       - run: npm test
 
   lint-workflows:
@@ -53,7 +55,7 @@ jobs:
           curl -fsSL -o /tmp/download-actionlint.bash "https://raw.githubusercontent.com/rhysd/actionlint/v${ACTIONLINT_VERSION}/scripts/download-actionlint.bash"
           bash /tmp/download-actionlint.bash "${ACTIONLINT_VERSION}" /tmp
       - name: Lint the kit workflow and the workflow it ships to projects
-        run: /tmp/actionlint -color .github/workflows/kit-ci.yml .github/workflows/publish.yml template/.github/workflows/ai-guardrails.yml
+        run: /tmp/actionlint -color .github/workflows/kit-ci.yml .github/workflows/publish.yml packages/core/template/.github/workflows/ai-guardrails.yml
 
   live-smoke:
     name: Live smoke (real npm + MCP registries, real servers)

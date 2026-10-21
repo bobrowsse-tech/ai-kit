@@ -1,0 +1,117 @@
+# Package and publish bobrowsse-tech.ai-kit to Marketplace + Open VSX.
+# Trigger: push to main that changes packages/vscode/package.json version, or manual.
+# HUMAN prerequisites (do not put secrets in the repo):
+#   - VSCE_PAT (Marketplace) until Azure OIDC is wired
+#   - Open VSX trusted publishing (environment open-vsx + id-token: write) or OVSX_PAT
+#   - DIRECTORY_DISPATCH_TOKEN → refresh https://bobrowsse-tech.github.io/vscode-extensions/
+name: Publish Extension
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/vscode/package.json
+  workflow_dispatch:
+
+concurrency:
+  group: publish-ext-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: open-vsx
+    defaults:
+      run:
+        working-directory: packages/vscode
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install workspaces
+        working-directory: .
+        run: npm install
+
+      - name: Hermetic tests
+        working-directory: .
+        run: npm test
+
+      - name: Package VSIX
+        run: npm run package
+
+      - name: Gate on Marketplace version
+        id: gate
+        working-directory: .
+        run: |
+          VERSION=$(node -p "require('./packages/vscode/package.json').version")
+          PUB=$(node -p "require('./packages/vscode/package.json').publisher")
+          NAME=$(node -p "require('./packages/vscode/package.json').name")
+          ID="${PUB}.${NAME}"
+          {
+            echo "version=${VERSION}"
+            echo "id=${ID}"
+          } >> "$GITHUB_OUTPUT"
+          LIVE=$(curl -sS "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json;api-version=7.1-preview.1" \
+            -d "{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"${ID}\"}]}],\"flags\":914}" \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{const j=JSON.parse(s);const e=j.results?.[0]?.extensions?.[0];process.stdout.write(e?.versions?.[0]?.version||'')}catch{process.stdout.write('')}})")
+          echo "marketplace_latest=${LIVE}"
+          if [ "${LIVE}" = "${VERSION}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Version ${VERSION} already on Marketplace — skipping publish"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Will publish ${ID}@${VERSION} (marketplace has '${LIVE:-none}')"
+          fi
+
+      - name: Publish to Visual Studio Marketplace
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then echo "Missing repo secret VSCE_PAT"; exit 1; fi
+          npx --yes @vscode/vsce publish --packagePath ai-kit.vsix --pat "$VSCE_PAT"
+
+      - name: Publish to Open VSX
+        if: steps.gate.outputs.skip != 'true'
+        run: npx --yes ovsx publish ai-kit.vsix --trusted-publishing
+
+      - name: Refresh extension directory
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.DIRECTORY_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "DIRECTORY_DISPATCH_TOKEN unset — skip directory refresh"
+            exit 0
+          fi
+          gh api repos/bobrowsse-tech/vscode-extensions/dispatches \
+            -f event_type=extension-published \
+            -f "client_payload[extension]=ai-kit"
+
+      - name: Tag extension release
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: .
+        env:
+          VERSION: ${{ steps.gate.outputs.version }}
+        run: |
+          TAG="ext-v${VERSION}"
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag ${TAG} already exists"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${TAG}" -m "Extension ${TAG}"
+          git push origin "${TAG}"

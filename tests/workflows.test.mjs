@@ -3,11 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { KIT } from './helpers.mjs';
+import { KIT, REPO } from './helpers.mjs';
 
-const FILES = ['template/.github/workflows/ai-guardrails.yml', '.github/workflows/kit-ci.yml'].map((f) => path.join(KIT, f));
+const FILES = [
+  path.join(KIT, 'template/.github/workflows/ai-guardrails.yml'),
+  path.join(REPO, '.github/workflows/kit-ci.yml'),
+];
 const text = (f) => fs.readFileSync(f, 'utf8');
-const rel = (f) => path.relative(KIT, f).split(path.sep).join('/');
+const rel = (f) => path.relative(REPO, f).split(path.sep).join('/');
 
 // Node has no YAML parser, so these are cheap textual guards. Real linting is actionlint (below and in kit CI).
 describe('workflow hygiene (no YAML parser needed)', () => {

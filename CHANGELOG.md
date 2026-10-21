@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+Added
+- Kit-repo docs and VS Code / Open VSX shipping directive (`docs/directives/vscode-extension.md`).
+- CLI golden tests and committed `npm pack` public-file baseline (`tests/fixtures/`).
+- VS Code / Open VSX extension package `packages/vscode` (`bobrowsse-tech.ai-kit` 0.1.0): **Initialize Project**, **Update Rules**, **Check Docs**, status bar docs health, getting-started walkthrough, limited Workspace Trust.
+- Core `checkDocs()` / `REQUIRED_DOCS` (12 living docs) shared with the extension.
+- User docs: `docs/HOW_TO_USE.md`; Marketplace README + banner/icon media; `publish-extension.yml` with directory dispatch for https://bobrowsse-tech.github.io/vscode-extensions/.
+
+Changed
+- Monorepo: `packages/core` (install engine + template), `packages/cli` (published `@bobrowsse-tech/ai-kit`), `packages/vscode` (Marketplace / Open VSX). `npm publish` runs from the CLI workspace; `stage-pack` vendors core into the tarball.
+- Guard: Windows-safe absolute / backslash `.env` path checks (fixes `windows-latest` CI).
+
 ## 1.6.0
 
 Added

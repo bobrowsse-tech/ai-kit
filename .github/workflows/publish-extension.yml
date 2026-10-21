@@ -2,7 +2,7 @@
 # Trigger: push to main that changes packages/vscode/package.json version, or manual.
 # HUMAN prerequisites (do not put secrets in the repo):
 #   - VSCE_PAT (Marketplace) until Azure OIDC is wired
-#   - Open VSX trusted publishing (environment open-vsx + id-token: write) or OVSX_PAT
+#   - OVSX_TOKEN for the first Open VSX version; then trusted publishing (env open-vsx)
 #   - DIRECTORY_DISPATCH_TOKEN → refresh https://bobrowsse-tech.github.io/vscode-extensions/
 name: Publish Extension
 
@@ -38,7 +38,7 @@ jobs:
 
       - name: Install workspaces
         working-directory: .
-        run: npm install
+        run: npm ci
 
       - name: Hermetic tests
         working-directory: .
@@ -51,6 +51,7 @@ jobs:
       - name: Gate on Marketplace version
         id: gate
         run: |
+          set -euo pipefail
           VERSION=$(node -p "require('./package.json').version")
           PUB=$(node -p "require('./package.json').publisher")
           NAME=$(node -p "require('./package.json').name")
@@ -59,11 +60,12 @@ jobs:
             echo "version=${VERSION}"
             echo "id=${ID}"
           } >> "$GITHUB_OUTPUT"
-          LIVE=$(curl -sS "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery" \
+          # Fail closed on HTTP/JSON errors. Empty LIVE after a valid response = not yet published.
+          LIVE=$(curl -sS -f "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery" \
             -H "Content-Type: application/json" \
             -H "Accept: application/json;api-version=7.1-preview.1" \
             -d "{\"filters\":[{\"criteria\":[{\"filterType\":7,\"value\":\"${ID}\"}]}],\"flags\":914}" \
-            | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{try{const j=JSON.parse(s);const e=j.results?.[0]?.extensions?.[0];process.stdout.write(e?.versions?.[0]?.version||'')}catch{process.stdout.write('')}})")
+            | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{let j;try{j=JSON.parse(s)}catch(e){console.error('Invalid Marketplace JSON:',e.message);process.exit(1)}if(!Array.isArray(j.results)){console.error('Unexpected Marketplace response shape');process.exit(1)}const e=j.results[0]?.extensions?.[0];process.stdout.write(e?.versions?.[0]?.version||'')})")
           echo "marketplace_latest=${LIVE}"
           if [ "${LIVE}" = "${VERSION}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -81,9 +83,16 @@ jobs:
           if [ -z "$VSCE_PAT" ]; then echo "Missing repo secret VSCE_PAT"; exit 1; fi
           npx --yes @vscode/vsce publish --packagePath ai-kit.vsix --pat "$VSCE_PAT"
 
+      # First version needs a PAT (OVSX_TOKEN). After it is live, register a trusted publisher
+      # for publish-extension.yml + environment open-vsx, then switch this step to
+      # `ovsx@1.3.0 publish … --trusted-publishing --skip-duplicate` and drop --pat.
       - name: Publish to Open VSX
         if: steps.gate.outputs.skip != 'true'
-        run: npx --yes ovsx publish ai-kit.vsix --trusted-publishing
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_TOKEN }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then echo "Missing repo secret OVSX_TOKEN"; exit 1; fi
+          npx --yes ovsx@1.3.0 publish ai-kit.vsix --pat "$OVSX_PAT" --skip-duplicate
 
       - name: Refresh extension directory
         if: ${{ !cancelled() }}

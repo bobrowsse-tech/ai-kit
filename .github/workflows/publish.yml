@@ -21,9 +21,10 @@ jobs:
           node-version: "22"
           registry-url: https://registry.npmjs.org
           scope: "@bobrowsse-tech"
+          cache: npm
 
       - name: Install workspaces
-        run: npm install
+        run: npm ci
 
       - name: Hermetic tests
         run: npm test

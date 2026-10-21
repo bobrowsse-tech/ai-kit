@@ -66,6 +66,14 @@ describe('guard: blocks (exit 2)', () => {
   it('blocks secrets dir with backslash separators', () => {
     assert.equal(file('Read', 'secrets\\prod.json').code, 2);
   });
+  it('blocks in-project .env when addressed via realpath (relative may escape via /var vs /private/var)', () => {
+    const real = fs.realpathSync(d);
+    if (real === path.resolve(d)) return; // nothing to prove on this platform/layout
+    put(d, { '.env': 'A=1\n' });
+    const r = file('Read', path.join(real, '.env'));
+    assert.equal(r.code, 2, r.all);
+    assert.match(r.err, /\[ai-kit guard\] Blocked/);
+  });
 });
 
 describe('guard: allows (exit 0, no decision)', () => {

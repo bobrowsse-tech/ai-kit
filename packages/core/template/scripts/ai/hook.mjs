@@ -59,21 +59,43 @@ const sensitive = (p) => {
   const n = norm(p);
   return isEnvFile(n) || isEnvFile(path.posix.basename(n)) || SECRET_PATH.some((r) => r.test(n));
 };
+const foldPath = (p) => (process.platform === 'win32' ? String(p).toLowerCase() : String(p));
+const realOrResolve = (p) => {
+  try { return fs.realpathSync(p); } catch { return path.resolve(p); }
+};
+/** True when abs resolves (realpath when possible) under project ROOT. */
+const underRoot = (absPath) => {
+  const root = norm(realOrResolve(path.resolve(ROOT)));
+  const abs = norm(realOrResolve(path.resolve(absPath)));
+  const R = foldPath(root);
+  const A = foldPath(abs);
+  if (A === R) return true;
+  const prefix = R.endsWith('/') ? R : `${R}/`;
+  return A.startsWith(prefix);
+};
 /**
  * Project-relative path for policy checks. On Windows, path.relative(ROOT, abs) can escape when
  * cwd uses an 8.3 short path and the tool passes a long path (or drive-letter case differs).
- * Fall back to the absolute normalized form so .env / secrets/ still match.
+ * If relative() escapes but the resolved path is still under ROOT, strip the root prefix.
+ * Truly outside-root paths stay absolute so sensitive() can still match basename (.env).
  */
 const rel = (p) => {
   const raw = String(p);
   if (!path.isAbsolute(raw) && !/^[A-Za-z]:[\\/]/.test(raw)) return norm(path.normalize(raw));
   const abs = path.resolve(raw);
-  let r = path.relative(path.resolve(ROOT), abs);
-  r = norm(r);
-  if (!r || r === '.' || r.startsWith('../') || /^[A-Za-z]:/.test(r)) return norm(abs);
-  return r;
+  const root = path.resolve(ROOT);
+  let r = norm(path.relative(root, abs));
+  if (r && r !== '.' && !r.startsWith('../') && !/^[A-Za-z]:/.test(r)) return r;
+  if (underRoot(abs)) {
+    const rootN = norm(realOrResolve(root));
+    const absN = norm(realOrResolve(abs));
+    if (foldPath(absN) === foldPath(rootN)) return '.';
+    const prefix = rootN.endsWith('/') ? rootN : `${rootN}/`;
+    return norm(absN.slice(prefix.length)) || '.';
+  }
+  return norm(abs);
 };
-/** True when any path form (relative, absolute, basename) is a secrets path. Always norms first. */
+/** OR of path forms. sensitive() only norms + regex — never calls back into sensitiveAny/rel. */
 const sensitiveAny = (p) => sensitive(rel(p)) || sensitive(p);
 
 const SECRETS = [

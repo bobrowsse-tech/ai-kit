@@ -86,8 +86,9 @@ jobs:
       # First version needs a PAT (OVSX_TOKEN). After it is live, register a trusted publisher
       # for publish-extension.yml + environment open-vsx, then switch this step to
       # `ovsx@1.3.0 publish … --trusted-publishing --skip-duplicate` and drop --pat.
+      # No skip gate: a Marketplace skip is success(), so this still runs on retry.
+      # A failed gate or Marketplace publish does not.
       - name: Publish to Open VSX
-        if: steps.gate.outputs.skip != 'true'
         env:
           OVSX_PAT: ${{ secrets.OVSX_TOKEN }}
         run: |
@@ -110,7 +111,6 @@ jobs:
             -f "client_payload[extension]=ai-kit"
 
       - name: Tag extension release
-        if: steps.gate.outputs.skip != 'true'
         working-directory: .
         env:
           VERSION: ${{ steps.gate.outputs.version }}

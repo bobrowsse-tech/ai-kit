@@ -29,7 +29,6 @@ Install once as a pinned devDependency, then refresh with:  npx ai-kit update
 `);
   process.exit(0);
 }
-// else: pass through (path and/or flags) for backwards compatibility with install.mjs
 
 const r = spawnSync(process.execPath, [installer, ...rest], { stdio: 'inherit' });
 process.exit(r.status ?? 1);

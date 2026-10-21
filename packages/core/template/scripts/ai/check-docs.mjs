@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './lib.mjs';
 
+// Keep in sync with packages/core/check-docs.mjs REQUIRED_DOCS (projects ship this file alone).
 const REQUIRED = ['index', 'architecture', 'design', 'features', 'userjourney', 'agents', 'conventions', 'schema', 'tasks', 'environment', 'functionality-index', 'memory'].map((n) => `docs/${n}.md`);
 const color = (c, t) => `\x1b[0;${c}m${t}\x1b[0m`;
 const missing = [], empty = [], todo = [];

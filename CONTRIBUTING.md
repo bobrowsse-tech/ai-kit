@@ -30,24 +30,42 @@ for exactly what's configured and why, line by line.
 
 ```bash
 npm install
-npm test          # hermetic suite (no network)
+npm test          # stages the CLI package, then hermetic suite (no network)
 npm run test:live # optional: real npm + MCP registries
 ```
 
 Install into a throwaway project:
 
 ```bash
-node install.mjs /tmp/ai-kit-smoke
+npm run stage
+node packages/cli/install.mjs /tmp/ai-kit-smoke
 ```
+
+This repo is an npm workspaces monorepo: `packages/core` (private engine +
+template) and `packages/cli` (published as `@bobrowsse-tech/ai-kit`). See
+`docs/directives/vscode-extension.md` for the VS Code / Open VSX plan.
 
 ## Release process
 
 1. Land your change via PR (see policy above).
-2. Bump `package.json` `version`, update `CHANGELOG.md` and the public README
-   for that version in the same change.
-3. Tag and create a GitHub release (`vX.Y.Z`). `.github/workflows/publish.yml`
-   publishes `@bobrowsse-tech/ai-kit` to npm using the `NPM_TOKEN` repository
-   secret (never commit token values).
+2. Bump `packages/cli/package.json` and `packages/core/package.json` `version`
+   together, update `CHANGELOG.md` and the public README for that version in
+   the same change.
+3. Tag and create a GitHub release (`cli-vX.Y.Z` or `vX.Y.Z`). `.github/workflows/publish.yml`
+   publishes `@bobrowsse-tech/ai-kit` from `packages/cli` using the `NPM_TOKEN`
+   repository secret (never commit token values).
+
+### Extension (Marketplace / Open VSX)
+
+1. Update `packages/vscode/README.md` in the **same** change as any version bump
+   (that README is what Marketplace, Open VSX, and
+   [the public directory](https://bobrowsse-tech.github.io/vscode-extensions/) show).
+2. Bump `packages/vscode/package.json` `version` (odd minor = pre-release).
+3. `.github/workflows/publish-extension.yml` packages the VSIX, publishes to
+   Marketplace + Open VSX, then dispatches `extension-published` to
+   `bobrowsse-tech/vscode-extensions` when `DIRECTORY_DISPATCH_TOKEN` is set.
+4. Repo secrets / env (names only): `VSCE_PAT`, Open VSX trusted publishing
+   (`open-vsx` environment), `DIRECTORY_DISPATCH_TOKEN`.
 
 ## Code style
 

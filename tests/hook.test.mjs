@@ -44,6 +44,36 @@ describe('guard: blocks (exit 2)', () => {
   it('never echoes the secret back', () => {
     assert.doesNotMatch(file('Edit', 'src/a.ts', { new_string: 'AKIAABCDEFGHIJKLMNOP' }).err, /AKIAABCDEFGHIJKLMNOP/);
   });
+  it('blocks absolute .env even when path.relative would escape the project root', () => {
+    // Simulates Windows runners where cwd is an 8.3 short path and the tool passes a long path
+    // (or a different drive-letter case), so path.relative(ROOT, abs) starts with "../".
+    const alien = path.resolve(path.dirname(d), `alien-${path.basename(d)}`, '.env');
+    const r = file('Read', alien);
+    assert.equal(r.code, 2, r.all);
+    assert.match(r.err, /\[ai-kit guard\] Blocked/);
+  });
+  it('blocks backslash-style nested env paths', () => {
+    const r = file('Read', 'apps\\web\\.env.local');
+    assert.equal(r.code, 2, r.all);
+  });
+  it('blocks Windows-style absolute .env with backslashes and lowercase drive', () => {
+    // Raw tool paths may keep "\" and a lowercase drive letter; must not bypass ENV_FILE.
+    const winAbs = 'c:\\Users\\runner\\AppData\\Local\\Temp\\proj\\.env';
+    const r = file('Read', winAbs);
+    assert.equal(r.code, 2, r.all);
+    assert.match(r.err, /\[ai-kit guard\] Blocked/);
+  });
+  it('blocks secrets dir with backslash separators', () => {
+    assert.equal(file('Read', 'secrets\\prod.json').code, 2);
+  });
+  it('blocks in-project .env when addressed via realpath (relative may escape via /var vs /private/var)', () => {
+    const real = fs.realpathSync(d);
+    if (real === path.resolve(d)) return; // nothing to prove on this platform/layout
+    put(d, { '.env': 'A=1\n' });
+    const r = file('Read', path.join(real, '.env'));
+    assert.equal(r.code, 2, r.all);
+    assert.match(r.err, /\[ai-kit guard\] Blocked/);
+  });
 });
 
 describe('guard: allows (exit 0, no decision)', () => {

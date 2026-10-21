@@ -1,0 +1,147 @@
+{
+  "name": "ai-kit",
+  "displayName": "AI Project Kit",
+  "description": "Install and refresh the AI Project Kit (rules, docs, guardrails, MCP setup) in the open workspace — same engine as the npm CLI.",
+  "version": "0.1.0",
+  "publisher": "bobrowsse-tech",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0D9488",
+    "theme": "dark"
+  },
+  "pricing": "Free",
+  "license": "MIT",
+  "private": true,
+  "author": {
+    "name": "Bob Rowsse Walakira",
+    "email": "hello@bobrowsse.com",
+    "url": "https://bobrowsse.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bobrowsse-tech/ai-kit.git",
+    "directory": "packages/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/bobrowsse-tech/ai-kit/issues"
+  },
+  "homepage": "https://github.com/bobrowsse-tech/ai-kit#readme",
+  "engines": {
+    "vscode": "^1.95.0",
+    "node": ">=18"
+  },
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "keywords": [
+    "ai",
+    "agents",
+    "claude",
+    "cursor",
+    "guardrails",
+    "mcp",
+    "project-kit",
+    "docs",
+    "security"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Initialize and Update write to the workspace and require trust. Check Docs stays available read-only."
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "aiKit.initializeProject",
+        "title": "AI Kit: Initialize Project",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "aiKit.updateRules",
+        "title": "AI Kit: Update Rules",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "aiKit.checkDocs",
+        "title": "AI Kit: Check Docs"
+      },
+      {
+        "command": "aiKit.openAgentsMd",
+        "title": "AI Kit: Open AGENTS.md"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "aiKit.gettingStarted",
+        "title": "Get started with AI Project Kit",
+        "description": "Install the kit, review AGENTS.md, fill living docs, and wire the pre-commit hook.",
+        "steps": [
+          {
+            "id": "aiKit.walkthrough.init",
+            "title": "Initialize the kit",
+            "description": "Run **AI Kit: Initialize Project** on your open folder.\n[Initialize Project](command:aiKit.initializeProject)",
+            "media": {
+              "markdown": "media/walkthrough-init.md"
+            },
+            "completionEvents": [
+              "onCommand:aiKit.initializeProject"
+            ]
+          },
+          {
+            "id": "aiKit.walkthrough.agents",
+            "title": "Review AGENTS.md",
+            "description": "Open the project rules file and point your agent at it.\n[Open AGENTS.md](command:aiKit.openAgentsMd)",
+            "media": {
+              "markdown": "media/walkthrough-agents.md"
+            },
+            "completionEvents": [
+              "onCommand:aiKit.openAgentsMd"
+            ]
+          },
+          {
+            "id": "aiKit.walkthrough.docs",
+            "title": "Fill the living docs",
+            "description": "Check which of the twelve docs files need content.\n[Check Docs](command:aiKit.checkDocs)",
+            "media": {
+              "markdown": "media/walkthrough-docs.md"
+            },
+            "completionEvents": [
+              "onCommand:aiKit.checkDocs"
+            ]
+          },
+          {
+            "id": "aiKit.walkthrough.hooks",
+            "title": "Wire the pre-commit hook",
+            "description": "Run setup-hooks so CI-style checks run before every commit.",
+            "media": {
+              "markdown": "media/walkthrough-hooks.md"
+            },
+            "completionEvents": [
+              "onStepSelected"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "vscode:prepublish": "node esbuild.mjs --production",
+    "package": "npm run vscode:prepublish && vsce package --no-dependencies -o ai-kit.vsix",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@bobrowsse-tech/ai-kit-core": "1.6.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.95.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2",
+    "ovsx": "1.3.0"
+  }
+}

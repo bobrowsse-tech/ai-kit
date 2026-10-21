@@ -1,49 +1,26 @@
 {
-  "name": "@bobrowsse-tech/ai-kit",
+  "name": "ai-kit-monorepo",
+  "private": true,
   "version": "1.6.0",
-  "description": "Drop-in AI project kit (rules, docs, reuse index, MCP setup, shared multi-agent guardrails, pre-ship security, modern CSS). Zero dependencies.",
+  "description": "AI Project Kit monorepo — CLI (@bobrowsse-tech/ai-kit) and shared core; VS Code extension comes next.",
   "license": "MIT",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
     "node": ">=18"
   },
-  "bin": {
-    "ai-kit": "bin/ai-kit.js"
-  },
-  "files": [
-    "bin",
-    "install.mjs",
-    "install.sh",
-    "kit.json",
-    "template",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE"
-  ],
   "scripts": {
-    "test": "node tests/run.mjs",
-    "test:live": "node tests/live-smoke.mjs"
+    "stage": "npm run stage -w @bobrowsse-tech/ai-kit",
+    "test": "npm run stage && node tests/run.mjs && npm run test -w ai-kit",
+    "test:live": "npm run stage && node tests/live-smoke.mjs",
+    "pack:cli": "npm run stage -w @bobrowsse-tech/ai-kit && npm pack -w @bobrowsse-tech/ai-kit",
+    "pack:ext": "npm run package -w ai-kit"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bobrowsse-tech/ai-kit.git"
   },
-  "bugs": {
-    "url": "https://github.com/bobrowsse-tech/ai-kit/issues"
-  },
-  "homepage": "https://github.com/bobrowsse-tech/ai-kit#readme",
-  "keywords": [
-    "ai",
-    "agents",
-    "claude",
-    "cursor",
-    "mcp",
-    "guardrails",
-    "project-kit",
-    "css",
-    "security"
-  ],
-  "publishConfig": {
-    "access": "public"
-  }
+  "homepage": "https://github.com/bobrowsse-tech/ai-kit#readme"
 }

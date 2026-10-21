@@ -4,6 +4,16 @@ node_modules/
 coverage/
 .npm-pack.tgz
 *.tgz
+*.vsix
+packages/vscode/dist/
+
+# Staged into packages/cli by scripts/stage-pack.mjs (source of truth: packages/core + repo root docs)
+packages/cli/vendor/
+packages/cli/kit.json
+packages/cli/template/
+packages/cli/README.md
+packages/cli/CHANGELOG.md
+packages/cli/LICENSE
 
 # Secrets and local env (names only in .env.example)
 .env

@@ -2,7 +2,9 @@
 
 Drop-in structure, rules, and tooling that make AI agents reuse code instead of regenerating it, spend fewer tokens, learn per project, follow guardrails you can enforce, and use the right MCP servers for the stack. Zero dependencies (Node >= 18).
 
-**npm:** [`@bobrowsse-tech/ai-kit`](https://www.npmjs.com/package/@bobrowsse-tech/ai-kit) · **Source:** [bobrowsse-tech/ai-kit](https://github.com/bobrowsse-tech/ai-kit)
+**npm:** [`@bobrowsse-tech/ai-kit`](https://www.npmjs.com/package/@bobrowsse-tech/ai-kit) · **Extension:** `bobrowsse-tech.ai-kit` (VS Code / Open VSX) · **Directory:** [bobrowsse-tech extensions](https://bobrowsse-tech.github.io/vscode-extensions/) · **Source:** [bobrowsse-tech/ai-kit](https://github.com/bobrowsse-tech/ai-kit)
+
+**How to use (CLI + extension):** [docs/HOW_TO_USE.md](./docs/HOW_TO_USE.md)
 
 Bugs and ideas: open an [issue](https://github.com/bobrowsse-tech/ai-kit/issues). Pull requests are limited to maintainers — see [CONTRIBUTING.md](./CONTRIBUTING.md). Security reports: [SECURITY.md](./SECURITY.md).
 
@@ -27,8 +29,10 @@ npx @bobrowsse-tech/ai-kit install
 From a local clone (development):
 
 ```bash
-node install.mjs /path/to/project
-node install.mjs /path/to/project --update
+npm install
+npm run stage
+node packages/cli/install.mjs /path/to/project
+node packages/cli/install.mjs /path/to/project --update
 ```
 
 Every file has one of four classes (`kit.json`, recorded per project in `.ai/kit.json`):

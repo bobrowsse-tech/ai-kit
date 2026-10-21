@@ -4,7 +4,11 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-export const KIT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+/** Staged CLI package root (run `npm run stage` first — `npm test` does). */
+export const KIT = path.join(REPO, 'packages/cli');
+/** Source-of-truth template + kit.json (edit here in tests that mutate the kit). */
+export const CORE = path.join(REPO, 'packages/core');
 export const posix = process.platform !== 'win32';
 const NO_NET = { AI_NPM_REGISTRY: 'http://127.0.0.1:1', AI_MCP_REGISTRY: 'http://127.0.0.1:1' };
 
@@ -53,7 +57,7 @@ export function kitCopy() {
 
 /** Starts tests/registry-server.mjs in its own process. bump() publishes a newer @playwright/mcp. */
 export async function registry() {
-  const child = spawn(process.execPath, [path.join(KIT, 'tests/registry-server.mjs')], { stdio: ['ignore', 'pipe', 'inherit'] });
+  const child = spawn(process.execPath, [path.join(REPO, 'tests/registry-server.mjs')], { stdio: ['ignore', 'pipe', 'inherit'] });
   const port = await new Promise((resolve, reject) => {
     child.stdout.once('data', (d) => resolve(Number(String(d).trim())));
     child.once('error', reject);

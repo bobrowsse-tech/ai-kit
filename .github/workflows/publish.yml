@@ -21,11 +21,15 @@ jobs:
           node-version: "22"
           registry-url: https://registry.npmjs.org
           scope: "@bobrowsse-tech"
+          cache: npm
+
+      - name: Install workspaces
+        run: npm ci
 
       - name: Hermetic tests
         run: npm test
 
-      - name: Publish
-        run: npm publish --access public
+      - name: Publish CLI package
+        run: npm publish -w @bobrowsse-tech/ai-kit --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

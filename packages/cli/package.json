@@ -1,0 +1,53 @@
+{
+  "name": "@bobrowsse-tech/ai-kit",
+  "version": "1.6.0",
+  "description": "Drop-in AI project kit (rules, docs, reuse index, MCP setup, shared multi-agent guardrails, pre-ship security, modern CSS). Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "ai-kit": "bin/ai-kit.js"
+  },
+  "files": [
+    "bin",
+    "install.mjs",
+    "install.sh",
+    "kit.json",
+    "template",
+    "vendor",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "stage": "node scripts/stage-pack.mjs",
+    "prepack": "node scripts/stage-pack.mjs"
+  },
+  "dependencies": {
+    "@bobrowsse-tech/ai-kit-core": "1.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bobrowsse-tech/ai-kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bobrowsse-tech/ai-kit/issues"
+  },
+  "homepage": "https://github.com/bobrowsse-tech/ai-kit#readme",
+  "keywords": [
+    "ai",
+    "agents",
+    "claude",
+    "cursor",
+    "mcp",
+    "guardrails",
+    "project-kit",
+    "css",
+    "security"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

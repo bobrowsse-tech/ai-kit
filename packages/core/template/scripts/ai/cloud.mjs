@@ -69,12 +69,33 @@ function aws(t, w) {
   return READ_VERB.test(action) ? ['read'] : ['mutate', `aws ${svc} ${action}`];
 }
 
+/** True when an Azure command prints key material. Key Vault name listings are excluded. Phrases are anchored so `sshkey show` is not `key show`. */
+function azPrintsKey(path, tokens) {
+  if (/^keyvault /.test(path) && / (secret|key|certificate) list$/.test(path)) return false;
+  if (has(tokens, '--show-values', '--show-keys', '--keys')) return true;
+  return /(^| )keys (list|show|set|regenerate|renew)$/.test(path)
+    || /(^| )key (list|show|regenerate|renew)$/.test(path)
+    || /(^| )secrets list$/.test(path)
+    || /(^| )(list-key|list-auth-keys?|get-shared-keys|regenerate-keys?|renew-keys?|show-credentials|compute-device-key)$/.test(path)
+    || /(^| )shared-key (show|reset)$/.test(path)
+    || /(^| )credential (show|renew)$/.test(path)
+    || /(^| )admin-key (show|renew)$/.test(path)
+    || /(^| )query-key (list|show|renew)$/.test(path)
+    || /(^| )list-publishing-(credentials|profiles)$/.test(path)
+    || /(^| )api-key create$/.test(path)
+    || /(^| )iot hub policy (show|list)$/.test(path)
+    || /(^| )iot dps policy (show|list)$/.test(path)
+    || /(^| )iot dps enrollment(-group)? create$/.test(path)
+    || /(^| )(device|module)-identity (show|list)$/.test(path);
+}
+
 function az(t, w) {
   if (!w.length) return ['read'];
   const verb = w[w.length - 1];
   const path = w.join(' ');
   if (/(^| )get-access-token$/.test(path) || /^(login|logout)$/.test(w[0]) || /account set$/.test(path)) return [/token/.test(path) ? 'secret' : 'mutate', path];
   if (/keyvault (secret|key|certificate) (show|download|get)/.test(path) || /storage account (keys list|show-connection-string)/.test(path) || /(list-keys|list-credentials|credential list|show-connection-string|connection-string)/.test(path)) return ['secret', path];
+  if (azPrintsKey(path, t)) return ['secret', path];
   if (verb === 'get-credentials') return ['mutate', 'az get-credentials writes credentials into the local kubeconfig'];
   if (/^(show|list|exists|query|version|tail|get|list-.+|get-.+|check-.+|show-.+)$/.test(verb)) return ['read'];
   return ['mutate', `az ${path}`];

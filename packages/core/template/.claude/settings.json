@@ -12,7 +12,14 @@
       "Bash(node scripts/ai/sync-agents.mjs)",
       "Bash(node scripts/ai/setup-mcp.mjs)",
       "Bash(node scripts/ai/setup-mcp.mjs --check)",
-      "Bash(node scripts/ai/check-docs.mjs)"
+      "Bash(node scripts/ai/check-docs.mjs)",
+      "Bash(node scripts/ai/workspace.mjs status*)",
+      "Bash(node scripts/ai/workspace.mjs brief *)",
+      "Bash(node scripts/ai/workspace.mjs search *)",
+      "Bash(node scripts/ai/workspace.mjs contracts*)",
+      "Bash(node scripts/ai/workspace.mjs gaps*)",
+      "Bash(node scripts/ai/workspace.mjs inbox)",
+      "Bash(node scripts/ai/workspace.mjs check)"
     ],
     "ask": [
       "Bash(git push *)",

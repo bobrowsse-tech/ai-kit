@@ -60,9 +60,38 @@ Every file has one of four classes (`kit.json`, recorded per project in `.ai/kit
 | `pre-ship-security` skill | 21-point pre-launch review against `docs/security-checklist.md`. |
 | `modern-css-workflows` skill | Modern CSS patterns (fluid type, OKLCH, subgrid, `:has()`, scroll-driven animation, popovers). |
 | `sync-agents.mjs` | Mirrors `.claude/skills` to `.agents/skills` for other agents. |
+| `workspace.mjs`, `cloud.mjs` + 4 `cross-repo-*`/`cloud-inspect` skills | Multi-repo workspaces: sister-repo briefs, search, contract gaps, handoffs, read-only cloud inspection (below). |
 | `.github/` | Workflow (JS, Python, e2e, pre-ship scan), Dependabot, PR template, CODEOWNERS. |
 
 On install/update, if `.github/workflows/ai-guardrails.yml` exists but is missing the Pre-Ship Security Scan step, the installer **injects that step only** (custom workflow edits elsewhere are left alone). Set `"preship": "error"` in `.ai/config.json` when you want the scan to fail CI.
+## Multi-repo workspaces
+
+A session in one repo (say the Angular frontend) can inspect and work with its sister repos (an ASP.NET or Node backend, infrastructure, shared libraries), find what is missing before building, and hand work over. Everything is opt-in: no `.ai/workspace.json`, no change in behaviour.
+
+```bash
+node scripts/ai/workspace.mjs init                    # this repo's entry + docs/cross-repo/
+node scripts/ai/workspace.mjs scan                    # sibling folders that look like repos (writes nothing)
+node scripts/ai/workspace.mjs add ../api --access inbox   # read (default) | inbox | write
+node scripts/ai/workspace.mjs status                  # on disk? branch, dirty/behind, open requests, launch hints
+node scripts/ai/workspace.mjs brief api               # ~100-line digest: stack, docs, HTTP surface, tasks, docs gaps
+node scripts/ai/workspace.mjs search all refund       # cross-language text search (C#, TS, Python, Terraform, ...)
+node scripts/ai/workspace.mjs gaps                    # calls nobody provides, method mismatches, unused endpoints
+node scripts/ai/workspace.mjs report new "Cancel order flow"
+node scripts/ai/workspace.mjs handoff --to api --title "Add cancel endpoint" --from-report docs/cross-repo/<report>.md
+node scripts/ai/workspace.mjs inbox | inbox close <file>
+```
+
+| Piece | What it does |
+|---|---|
+| `.ai/workspace.json` | Committed manifest: repo ids, roles, **relative** paths, remotes, `access`. `.ai/workspace.local.json` (gitignored) holds per-developer overrides. Do the same `add` inside each sister repo so the link works both ways. |
+| `access` | `read`: look only. `inbox`: may leave a request in the other repo's `docs/cross-repo/inbox/`. `write`: edits allowed. The guard hook denies edit-tool writes into any repo that is not `write` (inbox excepted), and asks before the manifest itself is edited. |
+| `brief`, `search`, `contracts`, `gaps` | Read a sister repo cheaply instead of loading it. Sister repos' AGENTS.md and skills are not loaded by any agent, so `brief` carries that context. `gaps` is regex-based (ASP.NET, minimal APIs, Express/Fastify/Nest, Next route handlers, FastAPI/Flask, Spring, OpenAPI, `docs/schema.md`; `fetch`, Angular `HttpClient`, axios, `HttpClient` in C#): its output is a list of leads to verify. |
+| Skills | `cross-repo-context` (orient and read), `cross-repo-investigate` (feasibility, gaps, journey cost, report), `cross-repo-change` (contract-first change across repos, per-repo checks, handoffs), `cloud-inspect` (read-only cloud and IaC inspection). |
+| Cloud policy | `hook.mjs` classifies `aws`, `az`, `gcloud`, `kubectl`, `helm`, `terraform`/`tofu`, `pulumi` and `gh api`: reads pass, mutations ask (`"workspace": { "cloud": "deny" }` denies, `"off"` disables), commands that print secret values are denied. Unknown verbs count as mutations. A guard rail, not a sandbox: use read-only cloud roles. |
+| Getting folders into a session | `workspace.mjs link` writes `.claude/settings.local.json` `additionalDirectories` (Claude Code: file access only, no CLAUDE.md or skills from the other repo). `workspace.mjs hub` writes a parent-folder `CLAUDE.md` (Claude Code loads parent-folder files) and a `.code-workspace` for Cursor/VS Code. |
+
+Limits: the access levels are enforced for file-edit tools (and Bash only for the patterns the guard already knows), so keep CODEOWNERS and branch protection as the backstop; sister repos must be on disk (clone them next to each other); the contract scan cannot see generated clients, gateways, or dynamic URLs, and does not compare payload shapes.
+
 ## Enforcement (multi-agent)
 
 One policy in `scripts/ai/hook.mjs` is registered for every agent that exposes project hooks:

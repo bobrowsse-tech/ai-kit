@@ -52,6 +52,22 @@
       "class": "owned"
     },
     {
+      "prefix": ".claude/skills/cross-repo-context/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/cross-repo-investigate/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/cross-repo-change/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/cloud-inspect/",
+      "class": "owned"
+    },
+    {
       "path": "docs/security-checklist.md",
       "class": "seed"
     },

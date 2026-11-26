@@ -9,6 +9,10 @@ package.json
 template/.ai/config.json
 template/.ai/mcp-catalog.json
 template/.claude/settings.json
+template/.claude/skills/cloud-inspect/SKILL.md
+template/.claude/skills/cross-repo-change/SKILL.md
+template/.claude/skills/cross-repo-context/SKILL.md
+template/.claude/skills/cross-repo-investigate/SKILL.md
 template/.claude/skills/mcp-tools/SKILL.md
 template/.claude/skills/modern-css-workflows/SKILL.md
 template/.claude/skills/pre-ship-security/SKILL.md
@@ -49,6 +53,7 @@ template/scripts/ai/check-docs.mjs
 template/scripts/ai/check-docs.sh
 template/scripts/ai/check-pins.mjs
 template/scripts/ai/ci-install.sh
+template/scripts/ai/cloud.mjs
 template/scripts/ai/detect-stack.mjs
 template/scripts/ai/dupes.mjs
 template/scripts/ai/find.mjs
@@ -62,3 +67,4 @@ template/scripts/ai/remember.mjs
 template/scripts/ai/setup-hooks.mjs
 template/scripts/ai/setup-mcp.mjs
 template/scripts/ai/sync-agents.mjs
+template/scripts/ai/workspace.mjs

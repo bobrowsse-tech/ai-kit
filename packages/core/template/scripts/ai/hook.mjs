@@ -39,8 +39,11 @@ if (rootHint) {
   try { process.chdir(rootHint); } catch { /* keep cwd */ }
 }
 
-const { ROOT, loadConfig } = await import('./lib.mjs');
-const cfg = loadConfig().guard;
+const { ROOT, loadConfig, loadWorkspace, INBOX_DIR } = await import('./lib.mjs');
+const { classifyLine } = await import('./cloud.mjs');
+const allCfg = loadConfig();
+const cfg = allCfg.guard;
+const wcfg = allCfg.workspace;
 
 // ---- shared helpers ----
 // Separators: accept / and \ so Windows absolute paths match even before norm().
@@ -133,6 +136,54 @@ function checkBash(cmd) {
   return null;
 }
 
+/** Cloud / IaC CLIs: reading secrets is denied, mutating commands ask (or deny with workspace.cloud = "deny"). */
+function cloudDecision(cmd) {
+  if (wcfg.cloud === 'off') return null;
+  const r = classifyLine(cmd);
+  if (!r || r.kind === 'read') return null;
+  if (r.kind === 'secret') return { decision: 'deny', reason: `${r.why || r.tool} would print secret values into the conversation. Inspect names and metadata only, or ask the user for the specific value.` };
+  return { decision: wcfg.cloud === 'deny' ? 'deny' : 'ask', reason: `${r.why || r.tool}: this can change cloud or infrastructure state. Inspection is read-only by default; confirm it is intended.` };
+}
+
+/** Shell command policy: deny rules first, then the cloud policy. */
+function evaluateBash(cmd) {
+  const why = checkBash(cmd);
+  if (why) return { decision: 'deny', reason: why };
+  return cloudDecision(cmd) || { decision: 'allow' };
+}
+
+/** realpath of the nearest existing ancestor + the rest, so new files in a sibling repo resolve correctly. */
+function realish(p) {
+  let cur = path.resolve(p);
+  const rest = [];
+  while (!fs.existsSync(cur) && path.dirname(cur) !== cur) { rest.unshift(path.basename(cur)); cur = path.dirname(cur); }
+  return path.join(realOrResolve(cur), ...rest);
+}
+
+/**
+ * Sister repos (.ai/workspace.json): a write into one is allowed only at access "write", or at "inbox" for
+ * docs/cross-repo/inbox/. Everything else is denied with the way forward (a handoff note).
+ */
+function workspaceWrite(raw) {
+  const ws = loadWorkspace(ROOT);
+  if (!ws) return null;
+  const abs = realish(path.resolve(ROOT, String(raw)));
+  let best = null;
+  for (const r of Object.values(ws.repos)) {
+    if (r.self) continue;
+    const dir = realish(r.abs);
+    const inside = foldPath(abs) === foldPath(dir) || foldPath(abs).startsWith(foldPath(dir.endsWith(path.sep) ? dir : dir + path.sep));
+    if (inside && (!best || dir.length > best.dir.length)) best = { ...r, dir };
+  }
+  if (!best || best.access === 'write') return null;
+  const inner = norm(path.relative(best.dir, abs));
+  if (best.access === 'inbox' && inner.startsWith(`${INBOX_DIR}/`)) return null;
+  const next = best.access === 'inbox'
+    ? `only ${INBOX_DIR}/ may be written there: leave a request with "node scripts/ai/workspace.mjs handoff --to ${best.id}"`
+    : `do not edit it from this session: leave a request with "node scripts/ai/workspace.mjs handoff --to ${best.id}" (needs access "inbox"), or ask the user to raise its access in .ai/workspace.json`;
+  return { decision: 'deny', reason: `${best.id} is a sister repo with access "${best.access}" in .ai/workspace.json; ${next}.` };
+}
+
 /** @returns {{ decision: 'allow'|'deny'|'ask', reason?: string }} */
 function evaluateFile(filePath, { writing, texts = [] } = {}) {
   if (!filePath) return { decision: 'allow' };
@@ -146,6 +197,8 @@ function evaluateFile(filePath, { writing, texts = [] } = {}) {
   if (/(^|[\\/])\.git([\\/]|$)/i.test(r) || /(^|[\\/])\.git([\\/]|$)/i.test(norm(raw))) {
     return { decision: 'deny', reason: 'editing .git internals is not allowed' };
   }
+  const sibling = workspaceWrite(raw);
+  if (sibling) return sibling;
   const base = path.posix.basename(r.includes('/') || r.includes(':') ? r : norm(raw));
   if (cfg.lockfiles.includes(base) || cfg.lockfiles.includes(path.posix.basename(norm(raw)))) {
     return { decision: 'deny', reason: `${base} is authoritative; change dependencies with the package manager (after user approval), never by hand` };
@@ -194,11 +247,7 @@ function evaluateToolUse(toolName, tiRaw) {
   }
   const tool = String(toolName || '');
 
-  if (/^(Bash|Shell|bash|shell|powershell|run_shell_command)$/i.test(tool)) {
-    const why = checkBash(shellCommand(ti));
-    if (why) return { decision: 'deny', reason: why };
-    return { decision: 'allow' };
-  }
+  if (/^(Bash|Shell|bash|shell|powershell|run_shell_command)$/i.test(tool)) return evaluateBash(shellCommand(ti));
 
   if (/^apply_patch$/i.test(tool)) {
     const patch = shellCommand(ti) || String(ti.patch || '');
@@ -264,9 +313,8 @@ if (mode === 'cursor') {
   };
   const event = input.hook_event_name || '';
   if (event === 'beforeShellExecution') {
-    const why = checkBash(String(input.command || ''));
-    if (why) out('deny', why);
-    out('allow');
+    const result = evaluateBash(String(input.command || ''));
+    out(result.decision, result.reason);
   }
   if (event === 'beforeReadFile' || event === 'beforeTabFileRead') {
     const result = evaluateFile(input.file_path || '', { writing: false });

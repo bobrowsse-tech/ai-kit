@@ -22,6 +22,10 @@ const DEFAULTS = {
   coverage: 'warn', // 'error' | 'warn' | 'off': a coverage threshold must be configured in the test tool
   authReview: 'warn', // 'error' | 'warn' | 'off': auth-related paths must be covered by CODEOWNERS
   preship: 'warn', // 'error' | 'warn' | 'off': scripts/ai/preship-check.mjs (static pre-ship security scan)
+  workspace: { // Multi-repo workspace (scripts/ai/workspace.mjs, .ai/workspace.json)
+    cloud: 'ask', // 'ask' | 'deny' | 'off': mutating cloud/IaC CLI commands (aws, az, gcloud, kubectl, terraform, ...). Secret-reading commands are always denied unless 'off'.
+    staleDays: 14, // inbox requests older than this are flagged by `workspace.mjs status`
+  },
   guard: { // Shared multi-agent guard (scripts/ai/hook.mjs)
     lockfiles: ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb', 'uv.lock', 'poetry.lock', 'Cargo.lock'],
     guardrailFiles: [
@@ -30,7 +34,10 @@ const DEFAULTS = {
       '.codex/hooks.json',
       '.github/hooks/ai-kit.json',
       '.gemini/settings.json',
+      '.ai/workspace.json',
+      '.ai/workspace.local.json',
       'scripts/ai/hook.mjs',
+      'scripts/ai/cloud.mjs',
       '.githooks/',
       '.husky/',
       '.github/workflows/ai-guardrails.yml',
@@ -51,6 +58,7 @@ export function loadConfig() {
     ...user,
     dupes: { ...DEFAULTS.dupes, ...(user.dupes || {}) },
     mcp: { ...DEFAULTS.mcp, ...(user.mcp || {}) },
+    workspace: { ...DEFAULTS.workspace, ...(user.workspace || {}) },
     guard: { ...DEFAULTS.guard, ...(user.guard || {}) },
   };
 }
@@ -242,4 +250,40 @@ export function projectFacts() {
     exists: (p) => all.some((f) => f.exists(p)),
     pyHas: (n) => all.some((f) => f.pyHas(n)),
   };
+}
+
+// ---- Multi-repo workspace manifest (.ai/workspace.json) ----
+export const WORKSPACE_FILE = '.ai/workspace.json';
+export const WORKSPACE_LOCAL = '.ai/workspace.local.json';
+/** Access levels for a sister repo: read-only, may receive handoff notes in docs/cross-repo/inbox/, or full write. */
+export const ACCESS = ['read', 'inbox', 'write'];
+export const INBOX_DIR = 'docs/cross-repo/inbox';
+
+/**
+ * The workspace manifest merged with per-developer overrides (.ai/workspace.local.json, gitignored),
+ * or null when there is none or it is unreadable. Each repo gets an absolute `abs` path and `self: true`
+ * when it resolves to this project. Paths in the manifest are relative to this project's root.
+ */
+export function loadWorkspace(root = ROOT) {
+  const readJson = (rel) => { try { return JSON.parse(fs.readFileSync(path.join(root, rel), 'utf8')); } catch { return null; } };
+  const base = readJson(WORKSPACE_FILE);
+  if (!base || typeof base.repos !== 'object' || Array.isArray(base.repos)) return null;
+  const local = readJson(WORKSPACE_LOCAL) || {};
+  const repos = {};
+  for (const [id, r] of Object.entries(base.repos)) {
+    const m = { ...(r || {}), ...((local.repos && local.repos[id]) || {}) };
+    const abs = path.resolve(root, typeof m.path === 'string' ? m.path : '.');
+    repos[id] = {
+      id,
+      role: typeof m.role === 'string' ? m.role : 'other',
+      path: typeof m.path === 'string' ? m.path : '.',
+      remote: typeof m.remote === 'string' ? m.remote : null,
+      access: ACCESS.includes(m.access) ? m.access : 'read',
+      summary: typeof m.summary === 'string' ? m.summary : '',
+      contracts: Array.isArray(m.contracts) ? m.contracts.filter((x) => typeof x === 'string') : [],
+      abs,
+      self: path.resolve(abs) === path.resolve(root),
+    };
+  }
+  return { ...base, repos };
 }

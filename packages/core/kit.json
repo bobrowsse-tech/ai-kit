@@ -1,6 +1,6 @@
 {
   "name": "ai-kit",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "$comment": "First matching rule wins; unmatched files are 'seed'. owned: kit-managed, refreshed on --update unless you modified them (then a .kit-new file is written). seed: created once, never touched again (docs, config, CODEOWNERS...). merge-doc: AGENTS.md (a differing existing file gets AGENTS.kit.md next to it). json-merge: settings merged additively; entries the kit previously shipped and later dropped are removed.",
   "rules": [
     {
@@ -49,6 +49,22 @@
     },
     {
       "prefix": ".claude/skills/modern-css-workflows/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/cross-repo-context/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/cross-repo-investigate/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/cross-repo-change/",
+      "class": "owned"
+    },
+    {
+      "prefix": ".claude/skills/cloud-inspect/",
       "class": "owned"
     },
     {

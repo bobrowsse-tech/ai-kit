@@ -31,6 +31,7 @@ Before reading or writing code:
 4. **Reuse search:** run the reuse protocol (section 3) before writing any new code.
 5. **Ecosystem and security:** verify live dependency status and security constraints when adding libraries or integrations (sections 5-6).
 6. **Local context:** read target files and their direct dependencies fully (by line range for large files) before editing.
+7. **Workspace (only if `.ai/workspace.json` exists):** run `node scripts/ai/workspace.mjs status` and read open requests for this repo in `docs/cross-repo/inbox/` (section 15).
 
 ## 3. Reuse-first (DRY) protocol - mandatory
 
@@ -119,7 +120,7 @@ A task is complete only when all pass:
 
 Project-specific skills live in `.claude/skills/<name>/SKILL.md` (other agents: symlink or copy that folder to their skills directory).
 
-- Built in: `reuse-first`, `project-bootstrap`, `project-memory`, `verify-and-ship`, `mcp-tools`, `pre-ship-security`, `modern-css-workflows`.
+- Built in: `reuse-first`, `project-bootstrap`, `project-memory`, `verify-and-ship`, `mcp-tools`, `pre-ship-security`, `modern-css-workflows`, `cross-repo-context`, `cross-repo-investigate`, `cross-repo-change`, `cloud-inspect`.
 - `.claude/skills` is the source of truth. `node scripts/ai/sync-agents.mjs` mirrors it to `.agents/skills` (read by Codex, Cursor, Copilot); the Claude Code Stop hook and pre-commit keep it in sync. Never edit the mirror.
 - `node scripts/ai/detect-stack.mjs --skills` scaffolds `stack-<tech>` skills for the detected architecture; the `project-bootstrap` skill completes them from real code.
 - A skill is short (under ~80 lines), has a trigger-style `description`, cites real file paths, and contains project facts, not generic tutorials.
@@ -144,3 +145,13 @@ Tools beyond the shell (current docs, browser checks, framework diagnostics). Lo
 ## 14. When unsure
 
 Ask one focused question rather than guessing when a decision affects architecture, data, auth, or dependencies. Otherwise state your assumption in one line and proceed.
+
+## 15. Multi-repo workspace
+
+Applies only when `.ai/workspace.json` exists (`node scripts/ai/workspace.mjs init`, then `add ../<repo>`). It lists this repo's sister repos (frontend, backend, infrastructure, shared libraries) with a role and an `access` level: `read` (default), `inbox` (may leave requests in the other repo's `docs/cross-repo/inbox/`), or `write`.
+
+- **Read, do not load:** use `workspace.mjs brief <id>`, `search <id|all> <words>` and `contracts` instead of reading a sister repo wholesale. Its rules are not loaded for you: read its AGENTS.md sections for your task before editing there.
+- **Verify before building:** a feature that needs another repo (endpoint, field, permission, config, infrastructure) is checked first with the `cross-repo-investigate` skill. Report gaps with `repo:path:line` evidence and a proposed change; what you could not verify stays UNKNOWN.
+- **Change across repos:** use the `cross-repo-change` skill: contract first, one branch and PR per repo, each repo's own checks run in that repo. Never edit a repo whose access is not `write`; leave a handoff (`workspace.mjs handoff --to <id>`). The guard denies such edits.
+- **Cloud:** inspection is read-only (`cloud-inspect` skill). Do not change cloud state or print secret values; the guard asks or denies.
+- Scope lock (section 7) holds per repo: adjacent problems in a sister repo are reported, not fixed. Editing `.ai/workspace.json` (it sets access levels) needs the user's confirmation.

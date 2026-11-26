@@ -17,9 +17,11 @@ Works in **VS Code**, **Cursor**, **VSCodium**, and other Open VSX–compatible 
 Prefer the terminal? Same kit:
 
 ```bash
-npm install -D @bobrowsse-tech/ai-kit@1.6.0
+npm install -D @bobrowsse-tech/ai-kit@1.7.0
 npx ai-kit install
 ```
+
+**Initialize Project** and **Update Rules** install kit 1.7.0. You can opt a project into sister repos (a short brief, contract gaps, and handoffs). Azure commands that print keys are blocked; ordinary reads still run.
 
 ## What you will see
 

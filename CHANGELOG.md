@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.7.0
+
+Added (multi-repo workspaces)
+- `scripts/ai/workspace.mjs`: `.ai/workspace.json` manifest (repo ids, roles, relative paths, `access` read|inbox|write) with `init`, `scan`, `add`, `status`, `link`, `hub`, `brief`, `search`, `contracts`, `gaps`, `report`, `handoff`, `inbox`, `check`. Sister repos are read-only; handoffs land in `docs/cross-repo/inbox/` of a repo that allows it.
+- Skills `cross-repo-context`, `cross-repo-investigate`, `cross-repo-change`, `cloud-inspect`; AGENTS.md section 15 and boot step 7 (workspace only).
+- Guard: writes into a sister repo are denied unless its access allows them; editing `.ai/workspace.json` asks. Cloud CLIs (`aws`, `az`, `gcloud`, `kubectl`, `helm`, `terraform`/`tofu`, `pulumi`, `gh api`): mutations ask (config `workspace.cloud`: `ask` | `deny` | `off`), commands that print secret values are denied (`scripts/ai/cloud.mjs`).
+- Azure commands that print keys are denied (`keys`/`key` list, show, or set, shared keys, credentials, `show-credentials`, `compute-device-key`, publishing profiles, IoT policy, device identity, and DPS enrollment create). `--show-values`, `--show-keys`, and `--keys` are denied even when they follow the verb. Key Vault name listings, `az sshkey show`, `api-key show`, and a DPS enrollment show without those flags stay read.
+- CI: `workspace.mjs check` step (validates the manifest shape; no-op without a manifest). `.claude/settings.json` allow-list for the read-only workspace subcommands.
+
+Upgrade notes
+- `AGENTS.md` is merge-doc: existing projects receive `AGENTS.kit.md`; copy section 15 and boot step 7 over.
+- A customised `guard.guardrailFiles` in `.ai/config.json` replaces the default list: add `.ai/workspace.json`, `.ai/workspace.local.json` and `scripts/ai/cloud.mjs` to it.
 
 Added
 - Kit-repo docs and VS Code / Open VSX shipping directive (`docs/directives/vscode-extension.md`).

@@ -58,6 +58,9 @@ jobs:
         run: node scripts/ai/preship-check.mjs
       # END ai-kit pre-ship security
 
+      - name: Workspace Manifest Is Valid (no-op without .ai/workspace.json)
+        run: node scripts/ai/workspace.mjs check
+
       - name: Duplicate Code Report
         run: node scripts/ai/dupes.mjs
 

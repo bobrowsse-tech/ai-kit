@@ -1,6 +1,10 @@
 .ai/config.json
 .ai/mcp-catalog.json
 .claude/settings.json
+.claude/skills/cloud-inspect/SKILL.md
+.claude/skills/cross-repo-change/SKILL.md
+.claude/skills/cross-repo-context/SKILL.md
+.claude/skills/cross-repo-investigate/SKILL.md
 .claude/skills/mcp-tools/SKILL.md
 .claude/skills/modern-css-workflows/SKILL.md
 .claude/skills/pre-ship-security/SKILL.md
@@ -43,6 +47,7 @@ scripts/ai/check-docs.mjs
 scripts/ai/check-docs.sh
 scripts/ai/check-pins.mjs
 scripts/ai/ci-install.sh
+scripts/ai/cloud.mjs
 scripts/ai/detect-stack.mjs
 scripts/ai/dupes.mjs
 scripts/ai/find.mjs
@@ -56,3 +61,4 @@ scripts/ai/remember.mjs
 scripts/ai/setup-hooks.mjs
 scripts/ai/setup-mcp.mjs
 scripts/ai/sync-agents.mjs
+scripts/ai/workspace.mjs

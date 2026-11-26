@@ -62,7 +62,7 @@ That matches Marketplace expectations for a lightweight project-kit tool.
 ### Install into a project
 
 ```bash
-npm install -D @bobrowsse-tech/ai-kit@1.6.0
+npm install -D @bobrowsse-tech/ai-kit@1.7.0
 npx ai-kit install
 ```
 
@@ -95,6 +95,12 @@ node scripts/ai/setup-hooks.mjs         # or package.json "prepare"
 ```
 
 Tell your agent: **Read AGENTS.md and run the project-bootstrap skill.**
+
+---
+
+## Working across several repos
+
+Put the repos next to each other (for example `web/`, `api/`, `infra/`), then in each one run `node scripts/ai/workspace.mjs init` once and `add ../<other>` for every sister repo. Start your agent in one repo and ask, for example: *"We are building the cancel-order screen. Investigate whether the backend supports it and report gaps."* The agent uses `status`, `brief`, `gaps` and the `cross-repo-investigate` skill, and writes a report to `docs/cross-repo/`. To have the other repo act, set its access to `inbox` (requests only) or `write` (the agent may edit it) in `.ai/workspace.json`. Details: root [README](../README.md#multi-repo-workspaces).
 
 ---
 

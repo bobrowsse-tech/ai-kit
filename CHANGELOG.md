@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.7.0
 
-Added (proposed 1.7.0: multi-repo workspaces)
+Added (multi-repo workspaces)
 - `scripts/ai/workspace.mjs`: `.ai/workspace.json` manifest (repo ids, roles, relative paths, `access` read|inbox|write) with `init`, `scan`, `add`, `status`, `link`, `hub`, `brief`, `search`, `contracts`, `gaps`, `report`, `handoff`, `inbox`, `check`. Sister repos are read-only; handoffs land in `docs/cross-repo/inbox/` of a repo that allows it.
 - Skills `cross-repo-context`, `cross-repo-investigate`, `cross-repo-change`, `cloud-inspect`; AGENTS.md section 15 and boot step 7 (workspace only).
 - Guard: writes into a sister repo are denied unless its access allows them; editing `.ai/workspace.json` asks. Cloud CLIs (`aws`, `az`, `gcloud`, `kubectl`, `helm`, `terraform`/`tofu`, `pulumi`, `gh api`): mutations ask (config `workspace.cloud`: `ask` | `deny` | `off`), commands that print secret values are denied (`scripts/ai/cloud.mjs`).

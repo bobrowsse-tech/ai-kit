@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+Changed
+- **Initialize Project** and **Update Rules** install kit 1.7.0. A project can opt into sister repos (briefs, contract gaps, and handoffs). Azure commands that print keys are blocked; ordinary reads still run.
+
 ## 0.1.1
 
 Fixed

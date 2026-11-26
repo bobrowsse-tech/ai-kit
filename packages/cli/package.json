@@ -1,6 +1,6 @@
 {
   "name": "@bobrowsse-tech/ai-kit",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Drop-in AI project kit (rules, docs, reuse index, MCP setup, shared multi-agent guardrails, pre-ship security, modern CSS). Zero dependencies.",
   "license": "MIT",
   "type": "module",
@@ -26,7 +26,7 @@
     "prepack": "node scripts/stage-pack.mjs"
   },
   "dependencies": {
-    "@bobrowsse-tech/ai-kit-core": "1.6.0"
+    "@bobrowsse-tech/ai-kit-core": "1.7.0"
   },
   "repository": {
     "type": "git",

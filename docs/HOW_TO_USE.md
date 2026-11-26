@@ -62,7 +62,7 @@ That matches Marketplace expectations for a lightweight project-kit tool.
 ### Install into a project
 
 ```bash
-npm install -D @bobrowsse-tech/ai-kit@1.6.0
+npm install -D @bobrowsse-tech/ai-kit@1.7.0
 npx ai-kit install
 ```
 

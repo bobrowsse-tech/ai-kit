@@ -2,7 +2,7 @@
   "name": "ai-kit",
   "displayName": "AI Project Kit",
   "description": "Install and refresh the AI Project Kit (rules, docs, guardrails, MCP setup) in the open workspace — same engine as the npm CLI.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "bobrowsse-tech",
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -136,7 +136,7 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@bobrowsse-tech/ai-kit-core": "1.6.0"
+    "@bobrowsse-tech/ai-kit-core": "1.7.0"
   },
   "devDependencies": {
     "@types/vscode": "1.95.0",

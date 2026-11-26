@@ -1,4 +1,4 @@
-# AI Project Kit 1.6
+# AI Project Kit 1.7
 
 Drop-in structure, rules, and tooling that make AI agents reuse code instead of regenerating it, spend fewer tokens, learn per project, follow guardrails you can enforce, and use the right MCP servers for the stack. Zero dependencies (Node >= 18).
 
@@ -13,7 +13,7 @@ Bugs and ideas: open an [issue](https://github.com/bobrowsse-tech/ai-kit/issues)
 Pin as a **devDependency** in the target project (recommended), then install or refresh:
 
 ```bash
-npm install -D @bobrowsse-tech/ai-kit@1.6.0
+npm install -D @bobrowsse-tech/ai-kit@1.7.0
 npx ai-kit install                    # new or existing project (cwd)
 npx ai-kit update                     # refresh kit files, keep everything you customized
 npx ai-kit install --dry-run          # show what would happen
